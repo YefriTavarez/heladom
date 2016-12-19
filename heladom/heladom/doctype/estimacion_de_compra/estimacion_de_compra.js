@@ -96,13 +96,26 @@ frappe.ui.form.on('Estimacion de Compra', {
 	get_estimation_info: function(frm){
 		frappe.msgprint("Ejecutando operacion");
 
+		// var first_date = moment(frm.doc.cut_trend_week);
+		// var first_year = first_date.year();
+		// var first_week = first_date.isoWeek();
+
+		// var end_date = moment(frm.doc.cut_trend_week).subtract(frm.doc.cut_trend - 1, "weeks");
+		// var end_year = first_date.year();
+		// var end_week = first_date.isoWeek();
+
+		// console.log("WEEK START: " + first_year + "." + first_week);
+		// console.log("WEEK END: " + end_year + "." + end_week);
+
 		frappe.call({
 			"method": "heladom.heladom.doctype.estimacion_de_compra.estimacion_de_compra.get_estimation_info",
             args: {
-                doctype: "Library Member"
+                end_date: frm.doc.cut_trend_week,
+                start_date: frm.doc.date_cut_trend
             },
             callback: function (data) {
                 var skus = data.message;
+                console.log(data);
                 skus.forEach(function(sku){
                 	var row = frappe.model.add_child(frm.doc, "estimation_skus");
                 	row.sku = sku.code;
