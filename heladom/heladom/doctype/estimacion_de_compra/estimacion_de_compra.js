@@ -20,37 +20,37 @@ frappe.ui.form.on('Estimacion de Compra', {
             }
 		});
 
-		var last_cut = moment().utc();
+		// var last_cut = moment().utc();
 
-		frappe.model.set_value(frm.doctype,
-                    frm.docname, "date_cut_trend", last_cut.format("ddd, D MMM YY"));
+		// frappe.model.set_value(frm.doctype,
+  //                   frm.docname, "date_cut_trend", last_cut.format("ddd, D MMM YY"));
 
-		frappe.model.set_value(frm.doctype,
-                    frm.docname, "cut_trend_week", last_cut.year() + "." + last_cut.isoWeek());
+		// frappe.model.set_value(frm.doctype,
+                    // frm.docname, "cut_trend_week", last_cut.year() + "." + last_cut.isoWeek());
 	},
 	before_submit: function(frm){
-		validated = false;
-		frappe.confirm(
-		    'Deseas crear una Orden de Compra basada en esta estimacion?',
-		    function(){
+		// validated = false;
+		// frappe.confirm(
+		//     'Deseas crear una Orden de Compra basada en esta estimacion?',
+		//     function(){
 
-		        frappe.call({
-		        	"method": "heladom.heladom.doctype.orden_de_compra.orden_de_compra.add_new_orden_de_compra",
-		        	args: {
-		                "estimation": frm.doc.name,
-		                "estimation_date": frm.doc.date,
-		                "estimation_supplier": frm.doc.supplier
-		            },
-            		callback: function (data) {
-            			console.log(data);
-            		}
-		        });
-		    },
-		    function(){
-		    	cur_frm.save("Submit");
-		        window.close()
-		    }
-		)
+		//         frappe.call({
+		//         	"method": "heladom.heladom.doctype.orden_de_compra.orden_de_compra.add_new_orden_de_compra",
+		//         	args: {
+		//                 "estimation": frm.doc.name,
+		//                 "estimation_date": frm.doc.date,
+		//                 "estimation_supplier": frm.doc.supplier
+		//             },
+  //           		callback: function (data) {
+  //           			console.log(data);
+  //           		}
+		//         });
+		//     },
+		//     function(){
+		//     	cur_frm.save("Submit");
+		//         window.close()
+		//     }
+		// )
 	},
 	transit: function(frm){
 		var transit_weeks = frm.doc.transit;
@@ -95,31 +95,55 @@ frappe.ui.form.on('Estimacion de Compra', {
 	},
 	get_estimation_info: function(frm){
 		frappe.msgprint("Ejecutando operacion");
-
-		// var first_date = moment(frm.doc.cut_trend_week);
-		// var first_year = first_date.year();
-		// var first_week = first_date.isoWeek();
-
-		// var end_date = moment(frm.doc.cut_trend_week).subtract(frm.doc.cut_trend - 1, "weeks");
-		// var end_year = first_date.year();
-		// var end_week = first_date.isoWeek();
-
-		// console.log("WEEK START: " + first_year + "." + first_week);
-		// console.log("WEEK END: " + end_year + "." + end_week);
-
 		frappe.call({
 			"method": "heladom.heladom.doctype.estimacion_de_compra.estimacion_de_compra.get_estimation_info",
             args: {
-                end_date: frm.doc.cut_trend_week,
-                start_date: frm.doc.date_cut_trend
+                doc: frm.doc
             },
             callback: function (data) {
                 var skus = data.message;
-                console.log(data);
+                // console.log(data);
                 skus.forEach(function(sku){
+                	// ly stand for last_year, cy stand for current_year
+                	var ly_avg = sku.last_year_avg;
+                	var cy_avg = sku.current_year_avg;
+                	var ly_transit_avg = sku.last_year_transit_avg;
+                	var ly_consumption_avg = sku.last_year_consumption_avg;
+
+                	var trend = ((cy_avg / ly_avg) - 1) * 100;
+
                 	var row = frappe.model.add_child(frm.doc, "estimation_skus");
                 	row.sku = sku.code;
                 	row.sku_name = sku.item;
+                	row.tendency = parseFloat(trend).toFixed(2);
+                	row.current_year_avg = parseFloat(cy_avg).toFixed(2);
+                	row.last_year_avg = parseFloat(ly_avg).toFixed(2);
+                	row.desp_avg = parseFloat(ly_transit_avg).toFixed(2);
+                	row.trasit_weeks = frm.doc.transit;
+                	row.total_required = row.desp_avg * frm.doc.transit;
+                	row.recent_tendency = parseFloat(trend).toFixed(2);
+                	row.real_required = row.total_required + (row.total_required *row.recent_tendency /100);
+                	row.avg_use_period = parseFloat(ly_consumption_avg).toFixed(2);
+                	row.consumption__use_period = frm.doc.consumption;
+                	row.total_reqd_use_period = row.avg_use_period * row.consumption__use_period;
+                	row.tendency__use_period = frm.doc.presup_gral;
+                	row.real_reqd_use_period = row.total_reqd_use_period + (row.total_reqd_use_period * row.tendency__use_period / 100);
+
+                	row.general_coverage = frm.doc.coverage;
+                	row.reqd_option_1 = parseFloat(row.general_coverage * cy_avg).toFixed(0);
+                	row.reqd_option_2 = parseFloat(row.total_required + row.total_reqd_use_period).toFixed(0);
+                	row.reqd_option_3 = parseFloat(row.real_required + row.real_reqd_use_period).toFixed(0);
+                	row.order_sku_existency = 11;
+                	row.order_sku_in_transit = 15;
+
+                	row.order_sku_real_reqd = row.reqd_option_3 - (row.order_sku_existency + row.order_sku_in_transit);
+                	row.order_sku_total = row.order_sku_real_reqd;
+
+                	row.piece_by_level = sku.pieces_per_level;
+                	row.piece_by_pallet = sku.pieces_per_pallet;
+
+                	row.level_qty = parseFloat(row.order_sku_total / row.piece_by_level).toFixed(2);
+					row.pallet_qty = parseFloat(row.order_sku_total / row.piece_by_pallet).toFixed(2);
                 });
 
 				cur_frm.refresh();
@@ -133,19 +157,42 @@ frappe.ui.form.on('Estimacion de Compra', {
 frappe.ui.form.on("Estimacion SKUs", {
 	required_qty: function(frm, cdt, cdn){
 		var row = locals[cdt][cdn];
-		console.log(row);
+		if (row.required_qty == 1) {
+            row.order_sku_real_reqd = row.reqd_option_1 - (row.order_sku_existency + row.order_sku_in_transit);
+		} else if (row.required_qty == 2) {
+			row.order_sku_real_reqd = row.reqd_option_2 - (row.order_sku_existency + row.order_sku_in_transit);
+		} else if (row.required_qty == 3) {
+			row.order_sku_real_reqd = row.reqd_option_3 - (row.order_sku_existency + row.order_sku_in_transit);
+		}
+
+		row.order_sku_total = parseFloat(row.order_sku_real_reqd) + parseFloat(row.mercadeo + row.logistica + row.planta);
+
+    	row.level_qty = parseFloat(row.order_sku_total / row.piece_by_level).toFixed(2);
+		row.pallet_qty = parseFloat(row.order_sku_total / row.piece_by_pallet).toFixed(2);
+		
+		frm.refresh_field("estimation_skus");
 	},
 	logistica: function(frm, cdt, cdn){
 		var row = locals[cdt][cdn];
-		console.log(row);
+		row.order_sku_total = row.order_sku_total + row.logistica;
+		row.level_qty = parseFloat(row.order_sku_total / row.piece_by_level).toFixed(2);
+		row.pallet_qty = parseFloat(row.order_sku_total / row.piece_by_pallet).toFixed(2);
+		frm.refresh_field("estimation_skus");
 	},
 	mercadeo: function(frm, cdt, cdn){
 		var row = locals[cdt][cdn];
-		console.log(row);
+		row.order_sku_total = row.order_sku_total + row.mercadeo;
+
+		row.level_qty = parseFloat(row.order_sku_total / row.piece_by_level).toFixed(2);
+		row.pallet_qty = parseFloat(row.order_sku_total / row.piece_by_pallet).toFixed(2);
+		frm.refresh_field("estimation_skus");
 	},
 	planta: function(frm, cdt, cdn){
 		var row = locals[cdt][cdn];
-		console.log(row);
+		row.order_sku_total = row.order_sku_total + row.planta;
+		row.level_qty = parseFloat(row.order_sku_total / row.piece_by_level).toFixed(2);
+		row.pallet_qty = parseFloat(row.order_sku_total / row.piece_by_pallet).toFixed(2);
+		frm.refresh_field("estimation_skus");
 	},
 	type: function(frm, cdt, cdn){
 		var row = locals[cdt][cdn];
@@ -153,7 +200,18 @@ frappe.ui.form.on("Estimacion SKUs", {
 	},
 	type_use_period: function(frm, cdt, cdn){
 		var row = locals[cdt][cdn];
-		console.log(row);
+
+		if (row.type_use_period == "Presupuesto General") {
+			row.tendency__use_period = frm.doc.presup_gral;
+			row.real_reqd_use_period = parseFloat(row.total_reqd_use_period + (row.total_reqd_use_period * frm.doc.presup_gral / 100)).toFixed(0);
+		} else if(row.type_use_period == "Tendencia") {
+			row.tendency__use_period = row.tendency;
+			row.real_reqd_use_period = parseFloat(row.total_reqd_use_period + (row.total_reqd_use_period * row.tendency / 100)).toFixed(0);
+		}
+
+		row.reqd_option_3 = parseFloat(row.real_required + parseFloat(row.real_reqd_use_period)).toFixed(0);
+				
+		frm.refresh_field("estimation_skus");
 	},
 });
 
