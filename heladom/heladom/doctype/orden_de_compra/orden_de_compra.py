@@ -5,81 +5,95 @@
 from __future__ import unicode_literals
 import frappe
 from frappe.model.document import Document
+import json
 
 class OrdendeCompra(Document):
-    pass
+	def on_submit(self):							
+		for row in self.estimations_skus:
+			fields_to_update = """SET order_sku_real_reqd = %d,
+								logistica = %d,
+								mercadeo = %d,
+								planta = %d,
+								order_sku_total = %d
+							""" % (row.order_sku_real_reqd, row.logistica, row.mercadeo,
+									row.planta, row.order_sku_total)
+			
+			result = frappe.db.sql("""UPDATE `tabEstimacion SKUs`
+										%s 
+										WHERE parent = '%s' AND sku = '%s'
+									""" % (fields_to_update ,row.estimation_reference, row.sku))
 
 
 @frappe.whitelist()
 def get_estimation_skus(estimation):
-    sql = frappe.db.sql("""SELECT sku, sku_name, general_coverage, reqd_option_1, reqd_option_2, reqd_option_3,
-                                required_qty, order_sku_existency, order_sku_in_transit, order_sku_real_reqd,
-                                logistica, mercadeo, planta, order_sku_total
-                            FROM `tabEstimacion SKUs`
-                            WHERE parent = '%s' """ % (estimation,), as_dict=1)
+	sql = frappe.db.sql("""SELECT sku, sku_name, general_coverage, reqd_option_1, reqd_option_2, reqd_option_3,
+								required_qty, order_sku_existency, order_sku_in_transit, order_sku_real_reqd,
+								logistica, mercadeo, planta, order_sku_total
+							FROM `tabEstimacion SKUs`
+							WHERE parent = '%s' """ % (estimation,), as_dict=1)
 
-    return sql
+	return sql
 
 @frappe.whitelist()
 def add_new_orden_de_compra(estimation, estimation_date, estimation_supplier):
-    message = 'error'
-    estimation_skus = frappe.db.sql("""SELECT sku, sku_name, general_coverage, reqd_option_1, reqd_option_2, reqd_option_3,
-                                required_qty, order_sku_existency, order_sku_in_transit, order_sku_real_reqd,
-                                logistica, mercadeo, planta, order_sku_total
-                            FROM `tabEstimacion SKUs`
-                            WHERE parent = '%s' """ % (estimation,), as_dict=1)
+	message = 'error'
+	estimation_skus = frappe.db.sql("""SELECT sku, sku_name, general_coverage, reqd_option_1, reqd_option_2, reqd_option_3,
+								required_qty, order_sku_existency, order_sku_in_transit, order_sku_real_reqd,
+								logistica, mercadeo, planta, order_sku_total
+							FROM `tabEstimacion SKUs`
+							WHERE parent = '%s' """ % (estimation,), as_dict=1)
 
-    # skus = []
-    # for sku in estimation_skus:
-    #     skus.append({
-    #         "sku": sku.sku,
-    #         "sku_name": sku.sku_name,
-    #         "general_coverage": sku.general_coverage,
-    #         "reqd_option_1": sku.reqd_option_1,
-    #         "reqd_option_2": sku.reqd_option_2,
-    #         "reqd_option_3": sku.reqd_option_3,
-    #         "required_qty": sku.required_qty,
-    #         "order_sku_existency": sku.order_sku_existency,
-    #         "order_sku_in_transit": sku.order_sku_in_transit,
-    #         "order_sku_real_reqd": sku.order_sku_real_reqd,
-    #         "logistica": sku.logistica,
-    #         "mercadeo": sku.mercadeo,
-    #         "planta": sku.planta,
-    #         "order_sku_total": sku.order_sku_total,
-    #         "estimation_reference": estimation
-    #         })
-    try:
-        order = frappe.get_doc({
-            "doctype": "Orden de Compra"
-        })
-        order.insert()
+	# skus = []
+	# for sku in estimation_skus:
+	#     skus.append({
+	#         "sku": sku.sku,
+	#         "sku_name": sku.sku_name,
+	#         "general_coverage": sku.general_coverage,
+	#         "reqd_option_1": sku.reqd_option_1,
+	#         "reqd_option_2": sku.reqd_option_2,
+	#         "reqd_option_3": sku.reqd_option_3,
+	#         "required_qty": sku.required_qty,
+	#         "order_sku_existency": sku.order_sku_existency,
+	#         "order_sku_in_transit": sku.order_sku_in_transit,
+	#         "order_sku_real_reqd": sku.order_sku_real_reqd,
+	#         "logistica": sku.logistica,
+	#         "mercadeo": sku.mercadeo,
+	#         "planta": sku.planta,
+	#         "order_sku_total": sku.order_sku_total,
+	#         "estimation_reference": estimation
+	#         })
+	try:
+		order = frappe.get_doc({
+			"doctype": "Orden de Compra"
+		})
+		order.insert()
 
-        # order.append("estimations", {
-        #             "estimation": estimation
-        #         })
+		# order.append("estimations", {
+		#             "estimation": estimation
+		#         })
 
-        # for sku in estimation_skus:
-        #     order.append("estimations_skus", {
-        #         "sku": sku.sku,
-        #         "sku_name": sku.sku_name,
-        #         "general_coverage": sku.general_coverage,
-        #         "reqd_option_1": sku.reqd_option_1,
-        #         "reqd_option_2": sku.reqd_option_2,
-        #         "reqd_option_3": sku.reqd_option_3,
-        #         "required_qty": sku.required_qty,
-        #         "order_sku_existency": sku.order_sku_existency,
-        #         "order_sku_in_transit": sku.order_sku_in_transit,
-        #         "order_sku_real_reqd": sku.order_sku_real_reqd,
-        #         "logistica": sku.logistica,
-        #         "mercadeo": sku.mercadeo,
-        #         "planta": sku.planta,
-        #         "order_sku_total": sku.order_sku_total,
-        #         "estimation_reference": estimation
-        #         })
+		# for sku in estimation_skus:
+		#     order.append("estimations_skus", {
+		#         "sku": sku.sku,
+		#         "sku_name": sku.sku_name,
+		#         "general_coverage": sku.general_coverage,
+		#         "reqd_option_1": sku.reqd_option_1,
+		#         "reqd_option_2": sku.reqd_option_2,
+		#         "reqd_option_3": sku.reqd_option_3,
+		#         "required_qty": sku.required_qty,
+		#         "order_sku_existency": sku.order_sku_existency,
+		#         "order_sku_in_transit": sku.order_sku_in_transit,
+		#         "order_sku_real_reqd": sku.order_sku_real_reqd,
+		#         "logistica": sku.logistica,
+		#         "mercadeo": sku.mercadeo,
+		#         "planta": sku.planta,
+		#         "order_sku_total": sku.order_sku_total,
+		#         "estimation_reference": estimation
+		#         })
 
-        order.insert()
-        message = 'success'
-    except Exception as e:
-        raise
-    
-    return message
+		order.insert()
+		message = 'success'
+	except Exception as e:
+		raise
+	
+	return message
