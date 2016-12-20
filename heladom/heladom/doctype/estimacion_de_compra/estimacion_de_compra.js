@@ -122,7 +122,7 @@ frappe.ui.form.on('Estimacion de Compra', {
                 	row.trasit_weeks = frm.doc.transit;
                 	row.total_required = row.desp_avg * frm.doc.transit;
                 	row.recent_tendency = parseFloat(trend).toFixed(2);
-                	row.real_required = parseFloat(row.total_required + (row.total_required *row.recent_tendency /100)).toFixed(0);
+                	row.real_required = parseFloat(parseFloat(row.total_required) + parseFloat(row.total_required *row.recent_tendency /100)).toFixed(0);
                 	row.avg_use_period = parseFloat(ly_consumption_avg).toFixed(2);
                 	row.consumption__use_period = frm.doc.consumption;
                 	row.total_reqd_use_period = row.avg_use_period * row.consumption__use_period;
