@@ -248,8 +248,8 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2016-12-20 00:24:33.446798", 
- "modified_by": "narciso@soldeva.com", 
+ "modified": "2017-01-10 21:42:39.913582", 
+ "modified_by": "Administrator", 
  "module": "Heladom", 
  "name": "Factura Internacional", 
  "name_case": "", 
@@ -277,7 +277,7 @@
    "write": 1
   }
  ], 
- "quick_entry": 1, 
+ "quick_entry": 0, 
  "read_only": 0, 
  "read_only_onload": 0, 
  "sort_field": "modified", 

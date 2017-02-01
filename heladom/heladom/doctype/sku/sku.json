@@ -307,8 +307,8 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2016-12-17 13:10:41.334512", 
- "modified_by": "narciso@soldeva.com", 
+ "modified": "2017-01-10 21:45:12.448228", 
+ "modified_by": "Administrator", 
  "module": "Heladom", 
  "name": "SKU", 
  "name_case": "", 
@@ -336,7 +336,7 @@
    "write": 1
   }
  ], 
- "quick_entry": 1, 
+ "quick_entry": 0, 
  "read_only": 0, 
  "read_only_onload": 0, 
  "sort_field": "modified", 

@@ -9,7 +9,33 @@ import json
 import datetime
 
 class EstimaciondeCompra(Document):
-	pass
+	def before_submit(self):
+		# Crear una entrada en administrador de pedidos
+		if self.is_warehouse_transfer:
+			pedido = frappe.get_doc({
+					"doctype": "Administrador de Pedidos",
+					"date": self.date,
+					"estimation": self.name,
+					"cost_center": self.cost_center
+					})
+
+			pedido.insert()
+
+			for sku in self.estimation_skus:
+				pedido_sku_row = frappe.get_doc({
+					"doctype": "Pedido Skus",
+					"sku": sku.sku,
+					"sku_name": sku.sku_name,
+					"qty": sku.order_sku_total,
+					"parent": pedido.name,
+					"parenttype": "Administrador de Pedidos",
+					"parentfield": "skus"
+					})
+				pedido_sku_row.insert()
+				pedido.skus.append(pedido_sku_row)
+
+			pedido.save()
+
 
 
 @frappe.whitelist()
@@ -23,7 +49,7 @@ def get_estimation_info(doc):
 	start_date = doc["date_cut_trend"]
 	supplier = doc["supplier"]
 	cost_center = doc["cost_center"]
-	cut_trend = doc["cut_trend"]
+	cut_trend = doc["cut_trend"]	
 	estimation_type = doc["estimation_type"]
 	presup_gral = doc["presup_gral"]
 	transit_weeks = doc["transit"]

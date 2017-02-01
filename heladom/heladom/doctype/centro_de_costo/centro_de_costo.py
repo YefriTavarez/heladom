@@ -8,3 +8,13 @@ from frappe.model.document import Document
 
 class Centrodecosto(Document):
 	pass
+
+
+@frappe.whitelist()
+def get_cost_center_info(cost_center_admin):
+	sql = frappe.db.sql("""SELECT c.* 
+							FROM `tabCentro de costo` c
+							WHERE center_admin = '%s'
+							""" % (cost_center_admin,), as_dict=1)[0]
+
+	return sql

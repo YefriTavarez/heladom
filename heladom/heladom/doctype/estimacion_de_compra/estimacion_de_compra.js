@@ -7,29 +7,61 @@ localLocale.format('LLLL');
 frappe.ui.form.on('Estimacion de Compra', {
 	refresh: function(frm) {
 
-		frappe.call({
-			"method": "heladom.heladom.doctype.configuracion.configuracion.get_configuration_info",
-            callback: function (data) {
-                var config = data.message;
+		if (frm.doc.__islocal) {
 
-                frappe.model.set_value(frm.doctype,
-                    frm.docname, "presup_gral", config.general_percent);
+			if (frappe.user.has_role("heladom_cost_center_admin")) {
+				frappe.call({
+					"method": "heladom.heladom.doctype.centro_de_costo.centro_de_costo.get_cost_center_info",
+					args: {
+						"cost_center_admin": frappe.user.name
+					},
+		            callback: function (data) {
+		                var cost_center = data.message;
 
-                frappe.model.set_value(frm.doctype,
-                    frm.docname, "cut_trend", config.weeks);
-            }
-		});
+		                frappe.model.set_value(frm.doctype,
+		                    frm.docname, "cost_center", cost_center.code);
 
-		// var last_cut = moment().utc();
+		                frappe.model.set_value(frm.doctype,
+		                    frm.docname, "supplier", "Almacen");
 
-		// frappe.model.set_value(frm.doctype,
-  //                   frm.docname, "date_cut_trend", last_cut.format("ddd, D MMM YY"));
+		                frappe.model.set_value(frm.doctype,
+		                    frm.docname, "is_warehouse_transfer", 1);
 
-		// frappe.model.set_value(frm.doctype,
-                    // frm.docname, "cut_trend_week", last_cut.year() + "." + last_cut.isoWeek());
+		                cur_frm.set_df_property("cost_center", "read_only", 1)
+		                cur_frm.set_df_property("supplier", "read_only", 1)
+		                cur_frm.set_df_property("is_warehouse_transfer", "read_only", 1)
+		            }
+				});
+			}
+
+			frappe.call({
+				"method": "heladom.heladom.doctype.configuracion.configuracion.get_configuration_info",
+	            callback: function (data) {
+	                var config = data.message;
+
+	                frappe.model.set_value(frm.doctype,
+	                    frm.docname, "presup_gral", config.general_percent);
+
+	                frappe.model.set_value(frm.doctype,
+	                    frm.docname, "cut_trend", config.weeks);
+	            }
+			});
+
+		}
 	},
 	before_submit: function(frm){
 		// validated = false;
+		// if (frm.doc.is_warehouse_transfer) {
+		// 	frappe.call({
+	 //        	"method": "heladom.heladom.doctype.administrador_de_pedidos.administrador_de_pedidos.METODO",
+	 //        	args: {
+	 //                "doc": frm.doc
+	 //            },
+  //       		callback: function (data) {
+  //       			console.log(data);
+  //       		}
+	 //        });
+		// }
 		// frappe.confirm(
 		//     'Deseas crear una Orden de Compra basada en esta estimacion?',
 		//     function(){
@@ -122,7 +154,7 @@ frappe.ui.form.on('Estimacion de Compra', {
                 	row.trasit_weeks = frm.doc.transit;
                 	row.total_required = row.desp_avg * frm.doc.transit;
                 	row.recent_tendency = parseFloat(trend).toFixed(2);
-                	row.real_required = parseFloat(parseFloat(row.total_required) + parseFloat(row.total_required *row.recent_tendency /100)).toFixed(0);
+                	row.real_required = row.total_required + (row.total_required *row.recent_tendency /100);
                 	row.avg_use_period = parseFloat(ly_consumption_avg).toFixed(2);
                 	row.consumption__use_period = frm.doc.consumption;
                 	row.total_reqd_use_period = row.avg_use_period * row.consumption__use_period;
