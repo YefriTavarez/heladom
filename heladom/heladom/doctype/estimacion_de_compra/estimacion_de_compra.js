@@ -134,35 +134,37 @@ frappe.ui.form.on('Estimacion de Compra', {
             },
             callback: function (data) {
                 var skus = data.message;
+
+                if (!skus) return;
+
                 // console.log(data);
                 skus.forEach(function(sku){
-                	// ly stand for last_year, cy stand for current_year
-                	var ly_avg = sku.last_year_avg;
-                	var cy_avg = sku.current_year_avg;
-                	var ly_transit_avg = sku.last_year_transit_avg;
-                	var ly_consumption_avg = sku.last_year_consumption_avg;
+                	var last_year_avg = sku.last_year_avg;
+                	var current_year_avg = sku.current_year_avg;
+                	var last_year_transit_avg = sku.last_year_transit_avg;
+                	var last_year_consumption_avg = sku.last_year_consumption_avg;
 
-                	var trend = ((cy_avg / ly_avg) - 1) * 100;
+                	var trend = ((current_year_avg / last_year_avg) - 1) * 100;
 
                 	var row = frappe.model.add_child(frm.doc, "estimation_skus");
                 	row.sku = sku.code;
                 	row.sku_name = sku.item;
                 	row.tendency = parseFloat(trend).toFixed(2);
-                	row.current_year_avg = parseFloat(cy_avg).toFixed(2);
-                	row.last_year_avg = parseFloat(ly_avg).toFixed(2);
-                	row.desp_avg = parseFloat(ly_transit_avg).toFixed(2);
+                	row.current_year_avg = parseFloat(current_year_avg).toFixed(2);
+                	row.last_year_avg = parseFloat(last_year_avg).toFixed(2);
+                	row.desp_avg = parseFloat(last_year_transit_avg).toFixed(2);
                 	row.trasit_weeks = frm.doc.transit;
                 	row.total_required = row.desp_avg * frm.doc.transit;
                 	row.recent_tendency = parseFloat(trend).toFixed(2);
                 	row.real_required = row.total_required + (row.total_required *row.recent_tendency /100);
-                	row.avg_use_period = parseFloat(ly_consumption_avg).toFixed(2);
+                	row.avg_use_period = parseFloat(last_year_consumption_avg).toFixed(2);
                 	row.consumption__use_period = frm.doc.consumption;
                 	row.total_reqd_use_period = row.avg_use_period * row.consumption__use_period;
                 	row.tendency__use_period = frm.doc.presup_gral;
                 	row.real_reqd_use_period = row.total_reqd_use_period + (row.total_reqd_use_period * row.tendency__use_period / 100);
 
                 	row.general_coverage = frm.doc.coverage;
-                	row.reqd_option_1 = parseFloat(row.general_coverage * cy_avg).toFixed(0);
+                	row.reqd_option_1 = parseFloat(row.general_coverage * current_year_avg).toFixed(0);
                 	row.reqd_option_2 = parseFloat(row.total_required + row.total_reqd_use_period).toFixed(0);
                 	row.reqd_option_3 = parseFloat(row.real_required + row.real_reqd_use_period).toFixed(0);
                 	row.order_sku_existency = 11;
