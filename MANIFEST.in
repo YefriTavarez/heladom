@@ -1,0 +1,18 @@
+include MANIFEST.in
+include requirements.txt
+include *.json
+include *.md
+include *.py
+include *.txt
+recursive-include heladom *.css
+recursive-include heladom *.csv
+recursive-include heladom *.html
+recursive-include heladom *.ico
+recursive-include heladom *.js
+recursive-include heladom *.json
+recursive-include heladom *.md
+recursive-include heladom *.png
+recursive-include heladom *.py
+recursive-include heladom *.svg
+recursive-include heladom *.txt
+recursive-exclude heladom *.pyc
