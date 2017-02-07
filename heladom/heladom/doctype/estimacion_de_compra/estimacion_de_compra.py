@@ -19,23 +19,15 @@ class EstimaciondeCompra(Document):
 					"cost_center": self.cost_center
 					})
 
-			pedido.insert()
-
 			for sku in self.estimation_skus:
-				pedido_sku_row = frappe.get_doc({
+				pedido.append("skus", {
 					"doctype": "Pedido Skus",
 					"sku": sku.sku,
 					"sku_name": sku.sku_name,
-					"qty": sku.order_sku_total,
-					"parent": pedido.name,
-					"parenttype": "Administrador de Pedidos",
-					"parentfield": "skus"
-					})
-				pedido_sku_row.insert()
-				pedido.skus.append(pedido_sku_row)
+					"qty": sku.order_sku_total
+				})
 
-			pedido.save()
-
+			pedido.insert()
 
 
 @frappe.whitelist()
@@ -70,7 +62,6 @@ def get_estimation_info(doc):
 		last_year_consumption_end_date = str(current_year) + str(last_year_consumption_end_week - 52)
 	else:
 		last_year_consumption_end_date = str(last_year) + str(last_year_consumption_end_week)
-
 
 
 	start_date = start_date.replace(".", "")
