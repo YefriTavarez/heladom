@@ -12,9 +12,12 @@ class Centrodecosto(Document):
 
 @frappe.whitelist()
 def get_cost_center_info(cost_center_admin):
-	sql = frappe.db.sql("""SELECT c.* 
-							FROM `tabCentro de costo` c
-							WHERE center_admin = '%s'
-							""" % (cost_center_admin,), as_dict=1)[0]
+	sql = frappe.db.sql("""SELECT * FROM `tabCentro de costo`
+		WHERE center_admin = '%s'""" 
+		% (cost_center_admin), as_dict=1)
 
-	return sql
+	if sql:
+		return sql[0]
+
+	return frappe.get_doc({"doctype": "Centro de costo"})
+	
