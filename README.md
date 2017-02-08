@@ -4,4 +4,4 @@ Aplicacion para el manejo de la compania Heladom
 
 #### License
 
-MIT
+General Public License (v3)

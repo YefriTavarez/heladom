@@ -40,6 +40,7 @@ frappe.ui.form.on('Estimacion de Compra', {
 	                
 	                frappe.model.set_value(frm.doctype, frm.docname, "presup_gral", config.general_percent);
 	                frappe.model.set_value(frm.doctype, frm.docname, "cut_trend", config.weeks);
+
 	            }
 			});
 
@@ -87,7 +88,6 @@ frappe.ui.form.on('Estimacion de Compra', {
 		var date = getNextDateObject(cut_trend_date, transit_weeks);
 
 		frappe.model.set_value(frm.doctype, frm.docname, "date_transit", date.formattedDate);
-
 		frappe.model.set_value(frm.doctype, frm.docname, "transit_week", date.weekOfYear);
 
 	},
@@ -98,9 +98,7 @@ frappe.ui.form.on('Estimacion de Compra', {
 		var dateFormatted = date_consumption.format("ddd, D MMM YY");
 
 		frappe.model.set_value(frm.doctype, frm.docname, "date_consumption", dateFormatted);
-
 		frappe.model.set_value(frm.doctype, frm.docname, "consumption_week", date_consumption.year() + "." + date_consumption.isoWeek());
-
 		frappe.model.set_value(frm.doctype, frm.docname, "coverage", frm.doc.consumption + frm.doc.transit);
 	},
 	coverage: function(frm){
@@ -110,7 +108,6 @@ frappe.ui.form.on('Estimacion de Compra', {
 		var date = getNextDateObject(date_consumption, consumption_week);
 
 		frappe.model.set_value(frm.doctype, frm.docname, "date_coverage", date.formattedDate);
-
 		frappe.model.set_value(frm.doctype, frm.docname, "coverage_week", date.weekOfYear);
 
 	},
@@ -142,6 +139,7 @@ frappe.ui.form.on('Estimacion de Compra', {
                 	row.current_year_avg = parseFloat(current_year_avg).toFixed(2);
                 	row.last_year_avg = parseFloat(last_year_avg).toFixed(2);
                 	row.desp_avg = parseFloat(last_year_transit_avg).toFixed(2);
+
                 	row.trasit_weeks = frm.doc.transit;
                 	row.total_required = row.desp_avg * frm.doc.transit;
                 	row.recent_tendency = parseFloat(trend).toFixed(2);

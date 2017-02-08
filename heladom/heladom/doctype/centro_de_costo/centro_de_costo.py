@@ -20,4 +20,3 @@ def get_cost_center_info(cost_center_admin):
 		return sql[0]
 
 	return frappe.get_doc({"doctype": "Centro de costo"})
-	

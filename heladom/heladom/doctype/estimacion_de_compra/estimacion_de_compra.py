@@ -74,6 +74,7 @@ def get_estimation_info(doc):
 
 	sql = frappe.db.sql("""SELECT * FROM tabSKU""", as_dict=1)
 
+
 	result = []
 	for sku in sql:
 		frappe.db.sql("""CALL GetPromedioHistorico('%s','%s','%s',@prom)""" % (start_date, end_date ,sku.name,))
@@ -97,6 +98,7 @@ def get_estimation_info(doc):
 		sku.last_year_consumption_avg = last_year_consumption_avg
 
 		result.append(sku)
+
 	return result
 
 def validate_fields(obj):

@@ -65,6 +65,7 @@ function get_sku_info(frm, skuCode){
 				row.sku_generic = sku.generic;
 				row.sku_generic_name = sku.generic_name;
 				cur_frm.refresh();
+
 				frappe.model.set_value(frm.doctype, frm.docname, "code", undefined);
 				var len = document.getElementsByClassName("close btn-open-row").length;
 				for(index = 0; index < len; index ++){
