@@ -17,19 +17,17 @@ frappe.ui.form.on('Estimacion de Compra', {
 					},
 		            callback: function (data) {
 		                var cost_center = data.message;
+		                if(!cost_center) return;
 
-		                frappe.model.set_value(frm.doctype,
-		                    frm.docname, "cost_center", cost_center.code);
+		                frappe.model.set_value(frm.doctype, frm.docname, "cost_center", cost_center.code);
+		                frappe.model.set_value(frm.doctype, frm.docname, "supplier", "Almacen");
+		                frappe.model.set_value(frm.doctype, frm.docname, "is_warehouse_transfer", 1);
 
-		                frappe.model.set_value(frm.doctype,
-		                    frm.docname, "supplier", "Almacen");
+		                cur_frm.set_df_property("cost_center", "read_only", 1);
+		                cur_frm.set_df_property("supplier", "read_only", 1);
+		                cur_frm.set_df_property("is_warehouse_transfer", "read_only", 1);
 
-		                frappe.model.set_value(frm.doctype,
-		                    frm.docname, "is_warehouse_transfer", 1);
-
-		                cur_frm.set_df_property("cost_center", "read_only", 1)
-		                cur_frm.set_df_property("supplier", "read_only", 1)
-		                cur_frm.set_df_property("is_warehouse_transfer", "read_only", 1)
+		                frm.refresh();
 		            }
 				});
 			}
@@ -38,12 +36,10 @@ frappe.ui.form.on('Estimacion de Compra', {
 				"method": "heladom.heladom.doctype.configuracion.configuracion.get_configuration_info",
 	            callback: function (data) {
 	                var config = data.message;
-
-	                frappe.model.set_value(frm.doctype,
-	                    frm.docname, "presup_gral", config.general_percent);
-
-	                frappe.model.set_value(frm.doctype,
-	                    frm.docname, "cut_trend", config.weeks);
+	                if(!config) return;
+	                
+	                frappe.model.set_value(frm.doctype, frm.docname, "presup_gral", config.general_percent);
+	                frappe.model.set_value(frm.doctype, frm.docname, "cut_trend", config.weeks);
 	            }
 			});
 
@@ -90,11 +86,9 @@ frappe.ui.form.on('Estimacion de Compra', {
 		var me = this;
 		var date = getNextDateObject(cut_trend_date, transit_weeks);
 
-		frappe.model.set_value(frm.doctype,
-                    frm.docname, "date_transit", date.formattedDate);
+		frappe.model.set_value(frm.doctype, frm.docname, "date_transit", date.formattedDate);
 
-		frappe.model.set_value(frm.doctype,
-                    frm.docname, "transit_week", date.weekOfYear);
+		frappe.model.set_value(frm.doctype, frm.docname, "transit_week", date.weekOfYear);
 
 	},
 	consumption: function(frm){
@@ -103,14 +97,11 @@ frappe.ui.form.on('Estimacion de Compra', {
 
 		var dateFormatted = date_consumption.format("ddd, D MMM YY");
 
-		frappe.model.set_value(frm.doctype,
-                    frm.docname, "date_consumption", dateFormatted);
+		frappe.model.set_value(frm.doctype, frm.docname, "date_consumption", dateFormatted);
 
-		frappe.model.set_value(frm.doctype,
-                    frm.docname, "consumption_week", date_consumption.year() + "." + date_consumption.isoWeek());
+		frappe.model.set_value(frm.doctype, frm.docname, "consumption_week", date_consumption.year() + "." + date_consumption.isoWeek());
 
-		frappe.model.set_value(frm.doctype,
-                    frm.docname, "coverage", frm.doc.consumption + frm.doc.transit);
+		frappe.model.set_value(frm.doctype, frm.docname, "coverage", frm.doc.consumption + frm.doc.transit);
 	},
 	coverage: function(frm){
 		var consumption_week = frm.doc.consumption;
@@ -118,11 +109,9 @@ frappe.ui.form.on('Estimacion de Compra', {
 
 		var date = getNextDateObject(date_consumption, consumption_week);
 
-		frappe.model.set_value(frm.doctype,
-                    frm.docname, "date_coverage", date.formattedDate);
+		frappe.model.set_value(frm.doctype, frm.docname, "date_coverage", date.formattedDate);
 
-		frappe.model.set_value(frm.doctype,
-                    frm.docname, "coverage_week", date.weekOfYear);
+		frappe.model.set_value(frm.doctype, frm.docname, "coverage_week", date.weekOfYear);
 
 	},
 	get_estimation_info: function(frm){
