@@ -37,6 +37,8 @@ def get_estimation_info(doc):
 	current_year = now.year
 	last_year = current_year - 1
 
+	validate_fields(doc)
+
 	end_date = doc["cut_trend_week"]
 	start_date = doc["date_cut_trend"]
 	supplier = doc["supplier"]
@@ -70,9 +72,7 @@ def get_estimation_info(doc):
 	current_start_date = start_date.replace(str(last_year), str(current_year))
 	current_end_date = end_date.replace(str(last_year), str(current_year))
 
-	sql = frappe.db.sql("""SELECT * 
-							FROM tabSKU
-							""", as_dict=1)
+	sql = frappe.db.sql("""SELECT * FROM tabSKU""", as_dict=1)
 
 	result = []
 	for sku in sql:
@@ -98,3 +98,34 @@ def get_estimation_info(doc):
 
 		result.append(sku)
 	return result
+
+def validate_fields(obj):
+	if not "cost_center" in obj or obj["cost_center"] == "":
+		frappe.throw("Falta <b>Centro de costo!</b>")
+
+	if not "supplier" in obj:
+		frappe.throw("Falta <b>Suplidor!</b>")
+
+	if not "estimation_type" in obj or obj["estimation_type"] == "":
+		frappe.throw("Falta <b>Tipo de Estimacion!</b>")
+
+	if not "cut_trend" in obj:
+		frappe.throw("Falta <b>Corte de Tendencia!</b>")
+
+	if not "presup_gral" in obj:
+		frappe.throw("Falta <b>Presupuesto General!</b>")
+		
+	if not "date_cut_trend" in obj:
+		frappe.throw("Falta <b>Fecha Inicio</b>!")
+
+	if not "cut_trend_week" in obj:
+		frappe.throw("Falta <b>Fecha Final</b>!")
+
+	if not "transit" in obj:
+		frappe.throw("Falta Cantidad de semanas en <b>Transito</b>!")
+
+	if not "consumption" in obj:
+		frappe.throw("Falta Cantidad de semanas de <b>Consumo</b>!")
+
+	if not "coverage" in obj:
+		frappe.throw("Falta Cantidad de semanas de <b>Cobertura!</b>")
