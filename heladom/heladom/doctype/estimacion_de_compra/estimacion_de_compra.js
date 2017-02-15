@@ -1,56 +1,67 @@
 // Copyright (c) 2016, Soldeva SRL and contributors
 // For license information, please see license.txt
-moment.locale('es');
-localLocale = moment()
-localLocale.format('LLLL');
+moment.locale('en');
+moment().format('LLLL');
 
 frappe.ui.form.on('Estimacion de Compra', {
-	refresh: function(frm) {
+	onload: function(frm) {
 
-		if (frm.doc.__islocal) {
+		if (! frm.doc.__islocal) return ;
 
-			if (frappe.user.has_role("heladom_cost_center_admin")) {
-				frappe.call({
-					"method": "heladom.heladom.doctype.centro_de_costo.centro_de_costo.get_cost_center_info",
-					args: {
-						"cost_center_admin": frappe.user.name
-					},
-		            callback: function (data) {
-		                var cost_center = data.message;
-		                if(!cost_center) return;
-
-		                frappe.model.set_value(frm.doctype, frm.docname, "cost_center", cost_center.code);
-		                frappe.model.set_value(frm.doctype, frm.docname, "supplier", "Almacen");
-		                frappe.model.set_value(frm.doctype, frm.docname, "is_warehouse_transfer", 1);
-
-		                cur_frm.set_df_property("cost_center", "read_only", 1);
-		                cur_frm.set_df_property("supplier", "read_only", 1);
-		                cur_frm.set_df_property("is_warehouse_transfer", "read_only", 1);
-
-		                frm.refresh();
-		            }
-				});
-			}
-
+		if (frappe.user.has_role("heladom_cost_center_admin") && frappe.session.user != "Administrator") {
+            
 			frappe.call({
-				"method": "heladom.heladom.doctype.configuracion.configuracion.get_configuration_info",
+				method: "heladom.heladom.doctype.centro_de_costo.centro_de_costo.get_cost_center_info",
+				args: {
+					"cost_center_admin": frappe.user.name
+				},
 	            callback: function (data) {
-	                var config = data.message;
-	                if(!config) return;
-	                
-	                frappe.model.set_value(frm.doctype, frm.docname, "presup_gral", config.general_percent);
-	                frappe.model.set_value(frm.doctype, frm.docname, "cut_trend", config.weeks);
+	                var cost_center = data.message;
+	                if(!cost_center.code) return;
 
+	                frappe.model.set_value(frm.doctype, frm.docname, "supplier", "Almacen");
+	                frappe.model.set_value(frm.doctype, frm.docname, "cost_center", cost_center.code);
+	                frappe.model.set_value(frm.doctype, frm.docname, "is_warehouse_transfer", 1);
+
+		            cur_frm.set_df_property("supplier", "read_only", 1);
+		            cur_frm.set_df_property("cost_center", "read_only", 1);
+		            cur_frm.set_df_property("is_warehouse_transfer", "read_only", 1);
+
+	                refresh_many(["cost_center","supplier","is_warehouse_transfer"]);
 	            }
 			});
-
 		}
+
+		frappe.call({
+			method: "heladom.heladom.doctype.configuracion.configuracion.get_configuration_info",
+            callback: function (data) {
+                var config = data.message;
+                if(!config) return;
+                
+                frappe.model.set_value(frm.doctype, frm.docname, "presup_gral", config.general_percent);
+                frappe.model.set_value(frm.doctype, frm.docname, "cut_trend", config.weeks);
+
+            }
+		});
+
+		var now_moment = moment(frm.doc.date).utc();
+		var last_year = now_moment.utc().year() - 1;
+		var cur_week = now_moment.utc().isoWeek() + 1;
+		var final_week = cur_week + 7;
+		var start_date = join(last_year, cur_week);
+		var end_date = join(last_year, final_week);
+
+	    frappe.model.set_value(frm.doctype, frm.docname, "date_cut_trend", start_date);
+	    frappe.model.set_value(frm.doctype, frm.docname, "cut_trend_week", end_date);
+
+
+		
 	},
 	before_submit: function(frm){
 		// validated = false;
 		// if (frm.doc.is_warehouse_transfer) {
 		// 	frappe.call({
-	 //        	"method": "heladom.heladom.doctype.administrador_de_pedidos.administrador_de_pedidos.METODO",
+	 //        	method: "heladom.heladom.doctype.administrador_de_pedidos.administrador_de_pedidos.METODO",
 	 //        	args: {
 	 //                "doc": frm.doc
 	 //            },
@@ -64,7 +75,7 @@ frappe.ui.form.on('Estimacion de Compra', {
 		//     function(){
 
 		//         frappe.call({
-		//         	"method": "heladom.heladom.doctype.orden_de_compra.orden_de_compra.add_new_orden_de_compra",
+		//         	method: "heladom.heladom.doctype.orden_de_compra.orden_de_compra.add_new_orden_de_compra",
 		//         	args: {
 		//                 "estimation": frm.doc.name,
 		//                 "estimation_date": frm.doc.date,
@@ -81,40 +92,41 @@ frappe.ui.form.on('Estimacion de Compra', {
 		//     }
 		// )
 	},
+	date: function(frm){
+		cur_frm.trigger("onload");
+	},
 	transit: function(frm){
 		var transit_weeks = frm.doc.transit;
 		var cut_trend_date = moment(frm.doc.date);
-		var me = this;
-		var date = getNextDateObject(cut_trend_date, transit_weeks);
+		var date = next_date(cut_trend_date, transit_weeks);
 
-		frappe.model.set_value(frm.doctype, frm.docname, "date_transit", date.formattedDate);
-		frappe.model.set_value(frm.doctype, frm.docname, "transit_week", date.weekOfYear);
+		frappe.model.set_value(frm.doctype, frm.docname, "date_transit", date.formatted);
+		frappe.model.set_value(frm.doctype, frm.docname, "transit_week", date.week_number);
 
 	},
 	consumption: function(frm){
-		var consumption_week = frm.doc.consumption;
-		var date_consumption = moment(frm.doc.date_transit).utc().add(1, "days");
+		var date_consumption = moment(frm.doc.date_transit).add(1, "days");
 
-		var dateFormatted = date_consumption.format("ddd, D MMM YY");
+		var formatted_date = format_date(date_consumption);
 
-		frappe.model.set_value(frm.doctype, frm.docname, "date_consumption", dateFormatted);
-		frappe.model.set_value(frm.doctype, frm.docname, "consumption_week", date_consumption.year() + "." + date_consumption.isoWeek());
-		frappe.model.set_value(frm.doctype, frm.docname, "coverage", frm.doc.consumption + frm.doc.transit);
+		frappe.model.set_value(frm.doctype, frm.docname, "date_consumption", formatted_date);
+		frappe.model.set_value(frm.doctype, frm.docname, "consumption_week", join(date_consumption.year(), date_consumption.utc().isoWeek()));
+		frappe.model.set_value(frm.doctype, frm.docname, "coverage", flt(frm.doc.consumption) + flt(frm.doc.transit));
 	},
 	coverage: function(frm){
 		var consumption_week = frm.doc.consumption;
-		var date_consumption = moment(frm.doc.date_consumption);
+		var date_consumption = moment(frm.doc.date_transit);
 
-		var date = getNextDateObject(date_consumption, consumption_week);
+		var date = next_date(date_consumption, consumption_week);
 
-		frappe.model.set_value(frm.doctype, frm.docname, "date_coverage", date.formattedDate);
-		frappe.model.set_value(frm.doctype, frm.docname, "coverage_week", date.weekOfYear);
+		frappe.model.set_value(frm.doctype, frm.docname, "date_coverage", date.formatted);
+		frappe.model.set_value(frm.doctype, frm.docname, "coverage_week", date.week_number);
 
 	},
 	get_estimation_info: function(frm){
-		frappe.msgprint("Ejecutando operacion");
+		frappe.msgprint("Proceso Iniciado!");
 		frappe.call({
-			"method": "heladom.heladom.doctype.estimacion_de_compra.estimacion_de_compra.get_estimation_info",
+			method: "heladom.api.get_estimation_info",
             args: {
                 doc: frm.doc
             },
@@ -123,12 +135,13 @@ frappe.ui.form.on('Estimacion de Compra', {
 
                 if (!skus) return;
 
-                // console.log(data);
+                cur_frm.clear_table("estimation_skus");
+
                 skus.forEach(function(sku){
-                	var last_year_avg = sku.last_year_avg;
-                	var current_year_avg = sku.current_year_avg;
-                	var last_year_transit_avg = sku.last_year_transit_avg;
-                	var last_year_consumption_avg = sku.last_year_consumption_avg;
+                	var last_year_avg = flt(sku.last_year_avg);
+                	var current_year_avg = flt(sku.current_year_avg);
+                	var last_year_transit_avg = flt(sku.last_year_transit_avg);
+                	var last_year_consumption_avg = flt(sku.last_year_consumption_avg);
 
                 	var trend = ((current_year_avg / last_year_avg) - 1) * 100;
 
@@ -154,8 +167,8 @@ frappe.ui.form.on('Estimacion de Compra', {
                 	row.reqd_option_1 = parseFloat(row.general_coverage * current_year_avg).toFixed(0);
                 	row.reqd_option_2 = parseFloat(row.total_required + row.total_reqd_use_period).toFixed(0);
                 	row.reqd_option_3 = parseFloat(row.real_required + row.real_reqd_use_period).toFixed(0);
-                	row.order_sku_existency = 11;
-                	row.order_sku_in_transit = 15;
+                	row.order_sku_existency = sku.final_order_stock;
+                	row.order_sku_in_transit = row.sku == "5151"? flt(15) : flt(0.0);
 
                 	row.order_sku_real_reqd = row.reqd_option_3 - (row.order_sku_existency + row.order_sku_in_transit);
                 	row.order_sku_total = row.order_sku_real_reqd;
@@ -167,9 +180,10 @@ frappe.ui.form.on('Estimacion de Compra', {
 					row.pallet_qty = parseFloat(row.order_sku_total / row.piece_by_pallet).toFixed(2);
                 });
 
-				cur_frm.refresh();
 
-                frappe.msgprint("El proceso a terminado");
+                after(method=frappe.update_msgprint,args="Proceso Terminado!", time=2);
+                after(method=frappe.hide_msgprint, args=undefined, time=4);
+                after(method=refresh_field, args="estimation_skus", time=4);
             }
 		});
 	}
@@ -236,35 +250,39 @@ frappe.ui.form.on("Estimacion SKUs", {
 	},
 });
 
-function getNextDateObject(date, weeks){
-	var newDate = getDateByWeek(date, weeks);
-		var formattedDate = getFormattedDateForUser(newDate);
-		var week = getWeekOfYear(newDate);
-		var year = getYear(newDate);
+function next_date(date, weeks){
+	var date_with_weeks = add_weeks(date, weeks);
 
-		return {
-			"formattedDate": formattedDate,
-			"weekOfYear": year + "." + week
-		}
+	return {
+		"formatted" : format_date(date_with_weeks),
+		"week_number" : join(year(date_with_weeks), week_number(date_with_weeks))
+	}
 }
 
-function getDateByWeek(date, weeks){
-	var newDate = moment(date).add(weeks, "weeks");
-	return newDate;
+function add_weeks(date, weeks){
+	return moment(date).add(weeks, "weeks");
 }
 
-function getFormattedDate(date){
-	return moment(date).utc().format("ddd, D MM YYYY")
+function format_date(date){
+	return moment(date).utc().format("ddd, D MMM YY");
 }
 
-function getFormattedDateForUser(date){
-	return moment(date).utc().format("ddd, D MMM YY")
+function week_number(date){
+	return moment(date).startOf('week').utc().isoWeek();
 }
 
-function getWeekOfYear(date){
-	return moment(date).utc().isoWeek();
-}
-
-function getYear(date){
+function year(date){
 	return moment(date).utc().year();
+}
+
+function after(method=undefined, args=undefined, time=5){
+	setTimeout(function(){
+		if(method){
+			method(args);
+		}
+	}, time*1000);
+}
+
+function join(first, second){
+	return first + "." + second;
 }
