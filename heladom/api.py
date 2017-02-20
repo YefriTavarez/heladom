@@ -3,122 +3,180 @@ from __future__ import unicode_literals
 
 import frappe, json
 from datetime import datetime
-from heladom.doctype.estimacion_de_compra.estimacion_de_compra import validate_fields
+
+weeks_in_year = 52 #Weeks a year has
 
 @frappe.whitelist()
-def get_estimation_info(doc):
-	doc = json.loads(doc)
-	now = datetime.now()
-
-	validate_fields(doc)
-
-	posting_date = doc['date']
-	old_end_date = doc["cut_trend_week"]
-	old_start_date = doc["date_cut_trend"]
-	supplier = doc["supplier"]
-	cost_center = doc["cost_center"]
-	cut_trend = doc["cut_trend"]	
-	estimation_type = doc["estimation_type"]
-	presup_gral = doc["presup_gral"]
-	transit_weeks = doc["transit"]
-	consumption_weeks = doc["consumption"]
-	
-	weeks_in_year = 52
-	current_year = posting_date.split("-")[0]
-	last_year = int(current_year) - 1
-	before_last_year = int(current_year) - 1
-
-	transit_period_start_date = old_start_date.replace(".", "")
-	transit_period_end_date = old_end_date.replace(".", "")
-
-	recent_history_start_week = int(old_start_date.split(".")[1])-10
-	recent_history_end_week = int(old_start_date.split(".")[1])-1
-
-	recent_history_start_year = old_start_date.split(".")[0]
-	recent_history_end_year = old_start_date.split(".")[0]
-
-	if recent_history_start_week < 0:
-		recent_history_start_week = weeks_in_year - abs(recent_history_start_week)
-		recent_history_start_year = before_last_year - 1
-
-	if recent_history_end_week < 0:
-		recent_history_end_week = weeks_in_year - abs(recent_history_end_week)
-		recent_history_end_year = before_last_year - 1
-
-
-	current_start_date = "{0}{1}".format(recent_history_start_year, recent_history_start_week) 
-	current_end_date = "{0}{1}".format(recent_history_end_year, recent_history_end_week) 
-
-	last_year_transit_start_date = "{0}{1}".format(int(recent_history_start_year) - 1, recent_history_start_week) 
-	last_year_transit_end_date = "{0}{1}".format(int(recent_history_end_year) - 1, recent_history_end_week)
-
-	consumption_period_start_week = int(old_end_date.split(".")[1]) + 1
-	consumption_period_end_week = int(old_end_date.split(".")[1]) + int(consumption_weeks)
-
-	consumption_period_start_year = old_start_date.split(".")[0]
-	consumption_period_end_year = old_start_date.split(".")[0]
-
-	if consumption_period_start_week > weeks_in_year:
-		consumption_period_start_week = consumption_period_start_week - weeks_in_year
-		consumption_period_start_year = consumption_period_start_year + 1
-
-	if consumption_period_end_week > weeks_in_year:
-		consumption_period_end_week = consumption_period_end_week - weeks_in_year
-		consumption_period_end_year = consumption_period_end_year + 1
-
-	last_year_consumption_start_date = "{0}{1}".format(consumption_period_start_year, consumption_period_start_week)
-	last_year_consumption_end_date = "{0}{1}".format(consumption_period_end_year, consumption_period_end_week)
-
-
-	sql = frappe.db.sql("""SELECT * FROM tabSKU""", as_dict=1)
-
-
-	result = []
-	for sku in sql:
-		frappe.db.sql("""CALL GetPromedioHistorico('%s','%s','%s',@prom)""" % (transit_period_start_date, transit_period_end_date ,sku.name,))
-		sku.last_year_transit_avg = frappe.db.sql("""select @prom""")[0][0]
-		#sku.last_year_avg = last_avg
-		frappe.errprint("transit_period_start_date: {0}".format(transit_period_start_date))
-		frappe.errprint("transit_period_end_date: {0}".format(transit_period_end_date))
-
-		frappe.db.sql("""CALL GetPromedioHistorico('%s','%s','%s',@prom)""" % (current_start_date, current_end_date ,sku.name,))
-		sku.current_year_avg = frappe.db.sql("""select @prom""")[0][0]
-		frappe.errprint("current_start_date: {0}".format(current_start_date))
-		frappe.errprint("current_end_date: {0}".format(current_end_date))
-
-		frappe.db.sql("""CALL GetPromedioHistorico('%s','%s','%s',@prom)""" % (last_year_transit_start_date, last_year_transit_end_date ,sku.name,))
-		sku.last_year_avg = frappe.db.sql("""select @prom""")[0][0]
-		frappe.errprint("last_year_transit_start_date: {0}".format(last_year_transit_start_date))
-		frappe.errprint("last_year_transit_end_date: {0}".format(last_year_transit_end_date))
-
-		frappe.db.sql("""CALL GetPromedioHistorico('%s','%s','%s',@prom)""" % (last_year_consumption_start_date, last_year_consumption_end_date ,sku.name,))
-		sku.last_year_consumption_avg = frappe.db.sql("""select @prom""")[0][0]
-		frappe.errprint("last_year_consumption_start_date: {0}".format(last_year_consumption_start_date))
-		frappe.errprint("last_year_consumption_end_date: {0}".format(last_year_consumption_end_date))
-
-		sku.final_order_stock = get_final_order_stock(sku.name, recent_history_end_year, recent_history_end_week)
-
-		result.append(sku)
-
-	return result
-
-def get_final_order_stock(sku, year, week):
-	frappe.errprint("sku: {0}".format(sku))
-	frappe.errprint("year: {0}".format(year))
-	frappe.errprint("week: {0}".format(week))
-	
-	stock = frappe.db.sql("""SELECT onces_total 
+def get_final_order_stock(year, week, sku):	
+	stock = frappe.db.sql("""
+		SELECT onces_total
 		FROM `tabInventario Fisico Helados Items` AS child 
 		JOIN `tabInventario Fisico Helados` AS parent 
 		ON child.parent = parent.name 
-		WHERE child.sku = '%s' 
-		AND parent.year = '%s' 
-		AND parent.week = '%s'"""
-		% (sku, year, week,), 
-	as_dict=True)
+		WHERE child.sku = '%(sku)s' 
+		AND parent.year = '%(year)s' 
+		AND parent.week = '%(week)s'"""
+	% { "sku" : sku, "year" : year, "week" : week })
 
-	if stock:
-		return stock[0].onces_total
+	if stock[0][0]:
+		return float(stock[0][0])
 
-	return 0
+	return float(0)
 
+
+@frappe.whitelist()
+def get_total_in_transit(sku):	
+	total = frappe.db.sql("""
+		SELECT SUM(order_sku_total)
+		FROM `tabEstimacion SKUs` AS child 
+		JOIN `tabEstimacion de Compra` AS parent 
+		ON child.parent = parent.name 
+		WHERE child.sku = '%(sku)s' 
+		AND parent.was_received <> 1
+		AND parent.docstatus = 1"""
+	% { "sku" : sku })
+
+	if total[0][0]:
+		return float(total[0][0])
+
+	return float(0)
+
+
+@frappe.whitelist()
+def get_average(start_date, end_date, sku):
+	start_date = remove_date_dot(start_date)
+	end_date = remove_date_dot(end_date)
+
+	frappe.db.sql(
+		"""CALL GetPromedioHistorico('%(from_date)s', '%(to_date)s', '%(sku)s', @average)""" 
+			% { "from_date" : start_date, "to_date" : end_date, "sku" : sku })
+
+	average = frappe.db.sql("""SELECT @average""")[0][0]
+
+	if not average:
+		return float(0)
+
+	return round(average, 2)
+
+def remove_date_dot(date_str):
+	if date_str.split("."):
+		return date_str.replace(".","")
+
+	return date_str
+
+@frappe.whitelist()
+def get_sku_list(supplier, sku_group=None):
+	return frappe.db.sql("""
+		SELECT sku.name sku, sku.item sku_name, sku.able_to_estamation, sku.available_locally, sku.pieces_per_level, 
+			sku.rotation_key, sku.code, sku.pieces_per_pallet, sku.arancel, sku.generic
+		FROM tabSKU AS sku 
+		JOIN tabItem AS item 
+		ON sku.item = item.name 
+		WHERE item.default_supplier = '%(default_supplier)s'
+		AND sku.able_to_estamation = 1 %(filter)s"""
+	% { "default_supplier": supplier, "filter": get_filters(sku_group) }, as_dict=True)
+
+def get_filters(sku_group):
+	if sku_group:
+		return "AND item.item_group = '{0}'".format(sku_group)
+
+	return ""
+
+@frappe.whitelist()
+def get_week(date):
+	"""Returns the year week from a date in the format ####.## where #### is the year and ## is the year week"""
+	week = str(date).split(".")[1]
+
+	if int(week) > weeks_in_year:
+		week = weeks_in_year
+
+	if int(week) < 1:
+		week = 1
+
+	return week
+
+@frappe.whitelist()
+def get_year(date):
+	"""Returns the year from a date in the format ####.## where #### is the year and ## is the year week"""
+	return str(date).split(".")[0]
+
+@frappe.whitelist()
+def add_weeks(date, weeks=1):
+	"""Adds the number of weeks to the specified date. 
+		If not specified it adds only one week."""
+	cur_year = get_year(date)
+	next_year_date = add_years(date)
+	next_year = get_year(next_year_date)
+	week = get_week(date)
+	
+	weeks = abs(int(weeks)) #to make sure we are handling good dates
+
+	if int(weeks) > 52:
+		left_weeks = int(weeks) % weeks_in_year
+		years_ahead = int(weeks) // weeks_in_year
+		new_week = int(week) + int(left_weeks)
+
+		if new_week > weeks_in_year:
+			new_week = int(new_week) - weeks_in_year
+			cur_year = next_year
+
+		tmp_date = "{0}.{1}".format(cur_year, new_week)
+		
+		return add_years(tmp_date, years_ahead)
+
+	new_week = int(week) + int(weeks)
+	
+	if new_week > weeks_in_year:
+		new_week = new_week - weeks_in_year
+		cur_year = next_year
+		
+	return "{0}.{1}".format(cur_year, new_week)
+
+@frappe.whitelist()
+def subtract_weeks(date, weeks=1):
+	"""Subtracts the number of weeks to the specified date.
+		If not specified it subtracts only one week."""
+	cur_year = get_year(date)
+	last_year_date = subtract_years(date)
+	last_year = get_year(last_year_date)
+	week = get_week(date)
+	
+	weeks = abs(int(weeks)) #to make sure we are handling good dates
+	if int(weeks) > 52:
+		left_weeks = int(weeks) % weeks_in_year
+		years_back = int(weeks) // weeks_in_year
+		new_week = int(week) - int(left_weeks)
+
+		if new_week < 1:
+			new_week = weeks_in_year - abs(new_week)
+			cur_year = last_year
+
+		tmp_date = "{0}.{1}".format(cur_year, new_week)
+		
+		return subtract_years(tmp_date, years_back)
+
+	new_week = int(week) - int(weeks)
+	
+	if new_week < 1:
+		new_week = weeks_in_year - abs(new_week)
+		cur_year = last_year
+		
+	return "{0}.{1}".format(cur_year, new_week)
+
+@frappe.whitelist()
+def add_years(date, years=1):
+	week = get_week(date)
+	cur_year = get_year(date)
+	next = int(cur_year) + int(years)
+	return "{0}.{1}".format(next, week)
+
+@frappe.whitelist()
+def subtract_years(date, years=1):
+	week = get_week(date)
+	cur_year = get_year(date)
+	last = int(cur_year) - int(years)
+	return "{0}.{1}".format(last, week)
+
+@frappe.whitelist()
+def subtract_one(value):
+	return int(value) - 1 
