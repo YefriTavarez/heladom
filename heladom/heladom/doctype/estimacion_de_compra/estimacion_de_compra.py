@@ -169,3 +169,83 @@ class EstimaciondeCompra(Document):
 		sku.pallet_qty = float(sku.order_sku_total) / float(sku.piece_by_pallet)
 
 		return sku
+
+	def fill_tables(self, sku):
+		from heladom.api import get_week, get_year
+		from heladom.api import subtract_weeks
+		from heladom.api import subtract_one
+
+		self.calculate_dates()
+		self.recent_history = []
+		self.transit_period = []
+		self.usage_period = []
+
+		for trend_week in range(0, self.cut_trend):
+
+			trend_date = subtract_weeks(self.date_cut_trend, trend_week)
+			cur_year = get_year(trend_date)
+			last_year = subtract_one(cur_year)
+			week = get_week(trend_date)
+
+			cur_fields_dict = self.get_physical_stock_as_dict(cur_year, week, sku)
+			last_fields_dict = self.get_physical_stock_as_dict(last_year, week, sku)
+
+			self.recent_history.append({
+				"anterior_ciclo" : last_fields_dict.year_week,
+				"anterior_consm" : last_fields_dict.consumo,
+				"anterior_exist" : last_fields_dict.onces_total,
+				"vigente_consm" : cur_fields_dict.consumo,
+				"vigente_exist" : cur_fields_dict.onces_total
+			})
+
+
+
+		from heladom.api import add_weeks
+
+		transit_start_date = add_weeks(self.date_cut_trend)
+
+		for trend_week in range(0, self.transit):
+			transit_date = add_weeks(transit_start_date, trend_week)
+
+			cur_year = get_year(transit_date)
+			last_year = subtract_one(cur_year)
+			week = get_week(transit_date)
+			transit_fields_dict = self.get_physical_stock_as_dict(last_year, week, sku)
+
+			self.transit_period.append({
+				"ciclo" : transit_fields_dict.year_week,
+				"desp" : transit_fields_dict.consumo,
+				"exist" : transit_fields_dict.onces_total,
+			})
+
+		usage_start_date = add_weeks(transit_start_date, self.transit)
+
+		for usage_week in range(0, self.consumption):
+			usage_date = add_weeks(usage_start_date, usage_week)
+
+			cur_year = get_year(usage_date)
+			last_year = subtract_one(cur_year)
+			week = get_week(usage_date)
+			usage_fields_dict = self.get_physical_stock_as_dict(last_year, week, sku)
+
+			self.usage_period.append({
+				"ciclo" : usage_fields_dict.year_week,
+				"desp" : usage_fields_dict.consumo,
+				"exist" : usage_fields_dict.onces_total,
+			})
+
+	def get_physical_stock_as_dict(self, year, week, sku):
+		row = frappe.db.sql("""SELECT parent.year_week, child.name, child.consumo, child.onces_total
+			FROM `tabInventario Fisico Helados` AS parent 
+			JOIN `tabInventario Fisico Helados Items` AS child 
+			ON parent.name = child.parent 
+			WHERE child.sku = '%(sku)s' 
+			AND parent.year='%(year)s' 
+			AND parent.week='%(week)s'""" 
+		% {"year":year, "week":week, "sku":sku}, as_dict=True)
+
+		if not row:
+			frappe.throw("¡No se encontro el SKU <b>{2}</b> para la semana {0}.{1}!"
+				.format(year, week, sku))
+
+		return row[0]
