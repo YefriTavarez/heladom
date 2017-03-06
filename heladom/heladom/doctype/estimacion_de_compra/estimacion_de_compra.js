@@ -4,12 +4,7 @@ moment.locale('en');
 moment().format('LLLL');
 
 frappe.ui.form.on('Estimacion de Compra', {
-	refresh: function(frm){
-		frm.trigger("transit");
-		frm.trigger("consumption");
-	},
 	onload: function(frm) {
-
 		if (! frm.doc.__islocal) return ;
 
 		if (frappe.user.has_role("heladom_cost_center_admin") && frappe.session.user != "Administrator") {
@@ -23,13 +18,13 @@ frappe.ui.form.on('Estimacion de Compra', {
 	                var cost_center = data.message;
 	                if(!cost_center.code) return;
 
-	                frappe.model.set_value(frm.doctype, frm.docname, "supplier", "Almacen");
-	                frappe.model.set_value(frm.doctype, frm.docname, "cost_center", cost_center.code);
-	                frappe.model.set_value(frm.doctype, frm.docname, "is_warehouse_transfer", 1);
+	                frm.doc.supplier = "Almacen";
+	                frm.doc.cost_center = cost_center.code;
+	                frm.doc.is_warehouse_transfer = 1;
 
-		            cur_frm.set_df_property("supplier", "read_only", 1);
-		            cur_frm.set_df_property("cost_center", "read_only", 1);
-		            cur_frm.set_df_property("is_warehouse_transfer", "read_only", 1);
+		            frm.set_df_property("supplier", "read_only", 1);
+		            frm.set_df_property("cost_center", "read_only", 1);
+		            frm.set_df_property("is_warehouse_transfer", "read_only", 1);
 
 	                refresh_many(["cost_center","supplier","is_warehouse_transfer"]);
 	            }
@@ -38,238 +33,206 @@ frappe.ui.form.on('Estimacion de Compra', {
 
 		frappe.call({
 			method: "heladom.heladom.doctype.configuracion.configuracion.get_configuration_info",
+			no_spinner: false,
             callback: function (data) {
                 var config = data.message;
                 if(!config) return;
                 
-                frappe.model.set_value(frm.doctype, frm.docname, "presup_gral", config.general_percent);
-                frappe.model.set_value(frm.doctype, frm.docname, "cut_trend", config.weeks);
+                frm.doc.presup_gral = config.general_percent;
+                frm.doc.cut_trend = config.weeks;
+	            refresh_many(["cut_trend","presup_gral"]);
 
             }
 		});
+		setTimeout(function(){ 
+			//if(frm.doc.__islocal)
+				//frm.set_intro("Sugerimos elegir Fechas que sean Lunes para optimos resultados.");
 
-		var now_moment = moment(frm.doc.date).utc();
-		var cur_year = now_moment.utc().year();
-		var cur_week = now_moment.utc().isoWeek() + 1;
-		var final_week = cur_week + 7;
-		var start_date = join(cur_year, cur_week);
-		var end_date = join(cur_year, final_week);
+			frm.script_manager.trigger("date");
+		}, 500);
 
-	    frappe.model.set_value(frm.doctype, frm.docname, "date_cut_trend", start_date);
-	    frappe.model.set_value(frm.doctype, frm.docname, "cut_trend_week", end_date);
-
-
-		
+		console.warn("event onload triggered!");
 	},
-	before_submit: function(frm){
-		// validated = false;
-		// if (frm.doc.is_warehouse_transfer) {
-		// 	frappe.call({
-	 //        	method: "heladom.heladom.doctype.administrador_de_pedidos.administrador_de_pedidos.METODO",
-	 //        	args: {
-	 //                "doc": frm.doc
-	 //            },
-  //       		callback: function (data) {
-  //       			console.log(data);
-  //       		}
-	 //        });
-		// }
-		// frappe.confirm(
-		//     'Deseas crear una Orden de Compra basada en esta estimacion?',
-		//     function(){
+	sku: function(frm){
+		if(! frm.doc.sku || ! frm.doc.date)	return ;
 
-		//         frappe.call({
-		//         	method: "heladom.heladom.doctype.orden_de_compra.orden_de_compra.add_new_orden_de_compra",
-		//         	args: {
-		//                 "estimation": frm.doc.name,
-		//                 "estimation_date": frm.doc.date,
-		//                 "estimation_supplier": frm.doc.supplier
-		//             },
-  //           		callback: function (data) {
-  //           			console.log(data);
-  //           		}
-		//         });
-		//     },
-		//     function(){
-		//     	cur_frm.save("Submit");
-		//         window.close()
-		//     }
-		// )
+		var callback = function(response){
+			frm.refresh();
+		};
+
+		frm.clear_table("current_period_table");
+		frm.clear_table("previous_period_table");
+		frm.clear_table("transit_period_table");
+		frm.clear_table("usage_period_table");
+		
+		$c('runserverobj', args = { 'method': 'set_missing_values', 'docs': frm.doc } , callback);
+		console.warn("event sku triggered!");
 	},
 	date: function(frm){
-		//cur_frm.trigger("onload");
-		iso_start_of_week = moment(frm.doc.date).startOf('isoWeek');
-		start_of_week = iso_start_of_week.add('days',1); //alwasy Tuesday
+		//if there is not date then exit the function
+		if(!frm.doc.date){
+			frm.doc.date = frappe.datetime.get_today();
+			refresh_field("date");
+		}
 
-		var cur_year = start_of_week.utc().year();
-		var start_transit_week = start_of_week.utc().isoWeek();
+		//if not transit weeks then set it to 0
+		if(!frm.doc.transit_weeks){
+			frm.doc.transit_weeks = 0;
+		}
 
-		var transit = frm.doc.transit;
-		if(! transit)
-			transit = 0;
+		var date_obj_js = new Date(frm.doc.date);
+		var iso_start_of_week = moment(date_obj_js).utc().startOf('isoWeek'); //Monday
 
-		var end_transit_week = start_transit_week + transit;
-		var start_date = join(cur_year, start_transit_week);
-		var end_date = join(cur_year, end_transit_week);
+	    frm.doc.current_date = iso_start_of_week.format("YYYY.W");
+	    frm.doc.sku = undefined;
 
-	    frappe.model.set_value(frm.doctype, frm.docname, "date_cut_trend", start_date);
-	    frappe.model.set_value(frm.doctype, frm.docname, "cut_trend_week", end_date);
-	    frm.trigger("transit");
-		frm.trigger("consumption");
-		
-
+	    //trigger the transit weeks event
+	    frm.trigger("transit_weeks");
+		console.warn("event date triggered!");
 	},
-	transit: function(frm){
-		var transit_weeks = frm.doc.transit;
-		var cut_trend_date = moment(frm.doc.date);
+	transit_weeks: function(frm){
+		var transit_weeks = frm.doc.transit_weeks;
+		var date_obj_js = new Date(frm.doc.date);
+		var cut_trend_date = moment(date_obj_js);
 		var date = next_date(cut_trend_date, transit_weeks);
 
-		frappe.model.set_value(frm.doctype, frm.docname, "date_transit", date.formatted);
-		frappe.model.set_value(frm.doctype, frm.docname, "transit_week", date.week_number);
-		frm.trigger("consumption");
+		frm.doc.arrival_date = date.formatted;
+		frm.doc.arrival_week = date.week_number;
+		refresh_many(["arrival_date", "arrival_week", "consumption_week"]);		
+		frm.trigger("consumption_weeks");
+		console.warn("event transit_weeks triggered!");
 	},
-	consumption: function(frm){
-		var date_consumption = moment(frm.doc.date_transit).add(1, "days");
+	consumption_weeks: function(frm){
+		var consumption_date = moment(new Date(frm.doc.arrival_date)).utc().add(1, "days");
 
-		var formatted_date = format_date(date_consumption);
+		var formatted_date = format_date(consumption_date);
 
-		frappe.model.set_value(frm.doctype, frm.docname, "date_consumption", formatted_date);
-		frappe.model.set_value(frm.doctype, frm.docname, "consumption_week", join(date_consumption.year(), date_consumption.utc().isoWeek()));
-		frappe.model.set_value(frm.doctype, frm.docname, "coverage", flt(frm.doc.consumption) + flt(frm.doc.transit));
-		frm.trigger("coverage");
+		frm.doc.consumption_date = formatted_date;
+		frm.doc.consumption_week = consumption_date.format("YYYY.W");
+		frm.doc.coverage_weeks = flt(frm.doc.consumption_weeks) + flt(frm.doc.transit_weeks);
+		refresh_many(["coverage_weeks", "consumption_date", "consumption_week"]);		
+		frm.trigger("coverage_weeks");
+		console.warn("event consumption_weeks triggered!");
 	},
-	coverage: function(frm){
-		var consumption_week = frm.doc.consumption;
-		var date_consumption = moment(frm.doc.date_transit);
+	coverage_weeks: function(frm){
+		var diff = flt(frm.doc.coverage_weeks) - flt(frm.doc.transit_weeks);
+		frm.doc.consumption_weeks = diff;
 
-		var date = next_date(date_consumption, consumption_week);
+		var consumption_week = frm.doc.consumption_weeks;
+		var date_obj_js = new Date(frm.doc.arrival_date);
+		var consumption_date = moment(date_obj_js);
 
-		frappe.model.set_value(frm.doctype, frm.docname, "date_coverage", date.formatted);
-		frappe.model.set_value(frm.doctype, frm.docname, "coverage_week", date.week_number);
+		var date = next_date(consumption_date, consumption_week);
 
-		var diff = flt(frm.doc.coverage) - flt(frm.doc.transit);
-		frappe.model.set_value(frm.doctype, frm.docname, "consumption", diff);
+		frm.doc.coverage_date = date.formatted;
+		frm.doc.coverage_week = date.week_number;
 
-		var date_consumption = moment(frm.doc.date_transit).add(1, "days");
+		var formatted_date = format_date(consumption_date.add(1, "days"));
 
-		var formatted_date = format_date(date_consumption);
-
-		frappe.model.set_value(frm.doctype, frm.docname, "date_consumption", formatted_date);
-		frappe.model.set_value(frm.doctype, frm.docname, "consumption_week", join(date_consumption.year(), date_consumption.utc().isoWeek()));
-		frappe.model.set_value(frm.doctype, frm.docname, "coverage", flt(frm.doc.consumption) + flt(frm.doc.transit));
-	},
-	get_estimation_info: function(frm){
-		var callback = function(response){
-        	after(method=frappe.update_msgprint,args="¡Proceso Terminado!", time=2);
-        	after(method=frappe.hide_msgprint, args=undefined, time=4);
-        	after(method=refresh_field, args="estimation_skus", time=4);
-		}
-
-		$c('runserverobj', args = { 'method': 'get_estimation_info', 'docs': frm.doc }, callback)
-	}
-});
-
-frappe.ui.form.on("Estimacion SKUs", {
-	required_qty: function(frm, cdt, cdn){
-		var row = locals[cdt][cdn];
-		if (row.required_qty == 1) {
-        	row.order_sku_real_reqd = row.reqd_option_1 - row.order_sku_existency - row.order_sku_in_transit;
-		} else if (row.required_qty == 2) {
-			row.order_sku_real_reqd = row.reqd_option_2 - row.order_sku_existency - row.order_sku_in_transit;
-		} else if (row.required_qty == 3) {
-			row.order_sku_real_reqd = row.reqd_option_3 - row.order_sku_existency - row.order_sku_in_transit;
-		}
-
-		row.order_sku_total = parseFloat(row.order_sku_real_reqd) + parseFloat(row.mercadeo + row.logistica + row.planta);
-
-    	row.level_qty = parseFloat(row.order_sku_total / row.piece_by_level).toFixed(2);
-		row.pallet_qty = parseFloat(row.order_sku_total / row.piece_by_pallet).toFixed(2);
+		frm.doc.consumption_date = formatted_date;
+		frm.doc.consumption_week = consumption_date.format("YYYY.W");
 		
-		frm.refresh_field("estimation_skus");
+		refresh_many(["consumption_weeks", "coverage_date", "coverage_week", "consumption_date", "consumption_week"]);		
+		console.warn("event coverage_weeks triggered!");
+	},
+	required_qty: function(frm, cdt, cdn){
+		if (frm.doc.required_qty == 1) {
+        	frm.doc.order_sku_real_reqd = frm.doc.reqd_option_1 - frm.doc.order_sku_existency - frm.doc.order_sku_in_transit;
+		} else if (frm.doc.required_qty == 2) {
+			frm.doc.order_sku_real_reqd = frm.doc.reqd_option_2 - frm.doc.order_sku_existency - frm.doc.order_sku_in_transit;
+		} else if (frm.doc.required_qty == 3) {
+			frm.doc.order_sku_real_reqd = frm.doc.reqd_option_3 - frm.doc.order_sku_existency - frm.doc.order_sku_in_transit;
+		}
+
+		frm.doc.order_sku_total = parseFloat(frm.doc.order_sku_real_reqd) + parseFloat(frm.doc.mercadeo + frm.doc.logistica + frm.doc.planta);
+
+    	frm.doc.level_qty = parseFloat(frm.doc.order_sku_total / frm.doc.piece_by_level).toFixed(2);
+		frm.doc.pallet_qty = parseFloat(frm.doc.order_sku_total / frm.doc.piece_by_pallet).toFixed(2);
+		
+		refresh_many(["order_sku_real_reqd","order_sku_total","level_qty","pallet_qty"]);
+		console.warn("event required_qty triggered!");
 	},
 	logistica: function(frm, cdt, cdn){
-		var row = locals[cdt][cdn];
 
-		row.order_sku_total = parseFloat(row.order_sku_real_reqd) + parseFloat(row.mercadeo + row.logistica + row.planta);
-		//row.order_sku_total = row.order_sku_total + row.logistica;
-		row.level_qty = parseFloat(row.order_sku_total / row.piece_by_level).toFixed(2);
-		row.pallet_qty = parseFloat(row.order_sku_total / row.piece_by_pallet).toFixed(2);
-		frm.refresh_field("estimation_skus");
+		frm.doc.order_sku_total = parseFloat(frm.doc.order_sku_real_reqd) + parseFloat(frm.doc.mercadeo + frm.doc.logistica + frm.doc.planta);
+		//frm.doc.order_sku_total = frm.doc.order_sku_total + frm.doc.logistica;
+		frm.doc.level_qty = parseFloat(frm.doc.order_sku_total / frm.doc.piece_by_level).toFixed(2);
+		frm.doc.pallet_qty = parseFloat(frm.doc.order_sku_total / frm.doc.piece_by_pallet).toFixed(2);
+		refresh_many(["order_sku_total","level_qty","pallet_qty"]);
+		console.warn("event triggered!");
 	},
 	mercadeo: function(frm, cdt, cdn){
-		var row = locals[cdt][cdn];
+		frm.doc.order_sku_total = parseFloat(frm.doc.order_sku_real_reqd) + parseFloat(frm.doc.mercadeo + frm.doc.logistica + frm.doc.planta);
+		//frm.doc.order_sku_total = frm.doc.order_sku_total + frm.doc.mercadeo;
 
-		row.order_sku_total = parseFloat(row.order_sku_real_reqd) + parseFloat(row.mercadeo + row.logistica + row.planta);
-		//row.order_sku_total = row.order_sku_total + row.mercadeo;
-
-		row.level_qty = parseFloat(row.order_sku_total / row.piece_by_level).toFixed(2);
-		row.pallet_qty = parseFloat(row.order_sku_total / row.piece_by_pallet).toFixed(2);
-		frm.refresh_field("estimation_skus");
+		frm.doc.level_qty = parseFloat(frm.doc.order_sku_total / frm.doc.piece_by_level).toFixed(2);
+		frm.doc.pallet_qty = parseFloat(frm.doc.order_sku_total / frm.doc.piece_by_pallet).toFixed(2);
+		refresh_many(["order_sku_total","level_qty","pallet_qty"]);
+		console.warn("event logistica triggered!");
 	},
 	planta: function(frm, cdt, cdn){
-		var row = locals[cdt][cdn];
-
-		row.order_sku_total = parseFloat(row.order_sku_real_reqd) + parseFloat(row.mercadeo + row.logistica + row.planta);
-		//row.order_sku_total = row.order_sku_total + row.planta;
-		row.level_qty = parseFloat(row.order_sku_total / row.piece_by_level).toFixed(2);
-		row.pallet_qty = parseFloat(row.order_sku_total / row.piece_by_pallet).toFixed(2);
-		frm.refresh_field("estimation_skus");
-	},
-	type: function(frm, cdt, cdn){
-		var row = locals[cdt][cdn];
-		//console.log(row);
+		frm.doc.order_sku_total = parseFloat(frm.doc.order_sku_real_reqd) + parseFloat(frm.doc.mercadeo + frm.doc.logistica + frm.doc.planta);
+		frm.doc.level_qty = parseFloat(frm.doc.order_sku_total / frm.doc.piece_by_level).toFixed(2);
+		frm.doc.pallet_qty = parseFloat(frm.doc.order_sku_total / frm.doc.piece_by_pallet).toFixed(2);
+		console.warn("event planta triggered!");
 	},
 	type_use_period: function(frm, cdt, cdn){
-		var row = locals[cdt][cdn];
-
-		if (row.type_use_period == "Presupuesto General") {
-			row.tendency__use_period = frm.doc.presup_gral;
-			row.real_reqd_use_period = parseFloat(row.total_reqd_use_period + (row.total_reqd_use_period * frm.doc.presup_gral / 100)).toFixed(2);
-		} else if(row.type_use_period == "Tendencia") {
-			row.tendency__use_period = row.tendency;
-			row.real_reqd_use_period = parseFloat(row.total_reqd_use_period + (row.total_reqd_use_period * row.tendency / 100)).toFixed(2);
+		if (frm.doc.type_use_period == "Presupuesto General") {
+			frm.doc.tendency__use_period = frm.doc.presup_gral;
+			frm.doc.real_reqd_use_period = parseFloat(frm.doc.total_reqd_use_period + (frm.doc.total_reqd_use_period * frm.doc.presup_gral / 100)).toFixed(2);
+		} else if(frm.doc.type_use_period == "Tendencia") {
+			frm.doc.tendency__use_period = frm.doc.tendency;
+			frm.doc.real_reqd_use_period = parseFloat(frm.doc.total_reqd_use_period + (frm.doc.total_reqd_use_period * frm.doc.tendency / 100)).toFixed(2);
 			//if tendency is negative it will subtract otherwise will add
 		}
 
-		row.reqd_option_3 = parseFloat(row.real_required + parseFloat(row.real_reqd_use_period)).toFixed(0);
+		frm.doc.reqd_option_3 = parseFloat(frm.doc.real_required + parseFloat(frm.doc.real_reqd_use_period)).toFixed(0);
 				
-		frm.refresh_field("estimation_skus");
-	}
+		refresh_many(["tendency__use_period","real_reqd_use_period","reqd_option_3"]);
+		console.warn("event type_use_period triggered!");
+	},
+	type: function(frm, cdt, cdn){
+		if (frm.doc.type_use_period == "Presupuesto General") {
+			frm.doc.recent_tendency = frm.doc.presup_gral;
+			frm.doc.real_required = parseFloat(frm.doc.total_required + (frm.doc.total_required * frm.doc.presup_gral / 100)).toFixed(2);
+		} else if(frm.doc.type_use_period == "Solo Tend Despacho") {
+			frm.doc.recent_tendency = frm.doc.tendency;
+			frm.doc.real_required = parseFloat(frm.doc.total_required + (frm.doc.total_required * frm.doc.recent_tendency / 100)).toFixed(2);
+		}
+
+		frm.doc.reqd_option_3 = parseFloat(frm.doc.real_required + parseFloat(frm.doc.real_reqd_use_period)).toFixed(0);
+				
+		refresh_many(["recent_tendency","real_required","reqd_option_3"]);
+		console.warn("event type triggered!");
+	},
 });
 
 function next_date(date, weeks){
 	var date_with_weeks = add_weeks(date, weeks);
 
 	return {
-		"formatted" : format_date(date_with_weeks),
-		"week_number" : join(year(date_with_weeks), week_number(date_with_weeks))
+		"formatted" : date_with_weeks.format("ddd, D MMM YYYY"),
+		"week_number" : date_with_weeks.add(-1,'days').format("YYYY.W")
 	}
 }
 
 function add_weeks(date, weeks){
-	return moment(date).add(weeks, "weeks");
+	return moment(date).add(weeks, "weeks").utc();
 }
 
 function format_date(date){
-	return moment(date).utc().format("ddd, D MMM YY");
+	return moment(date).utc().format("ddd, D MMM YYYY");
 }
 
-function week_number(date){
-	return moment(date).startOf('week').utc().isoWeek();
-}
 
-function year(date){
-	return moment(date).utc().year();
-}
-
-function after(method=undefined, args=undefined, time=5){
-	setTimeout(function(){
-		if(method){
-			method(args);
-		}
-	}, time*1000);
-}
-
-function join(first, second){
-	return first + "." + second;
+function $c(command, args, callback, error, no_spinner, freeze_msg, btn) {
+	return frappe.request.call({
+		type: "POST",
+		args: $.extend(args, {cmd: command}),
+		success: callback,
+		error: error,
+		btn: btn,
+		freeze: freeze_msg,
+		show_spinner: !no_spinner
+	})
 }
