@@ -45,11 +45,6 @@ class EstimaciondeCompra(Document):
 		self.consumption_period_start_date = add_weeks(self.transit_period_end_date)
 		self.consumption_period_end_date = add_weeks(self.consumption_period_start_date, consumption_weeks)
 
-		frappe.errprint("recent_history_current_year_start_date : {0}".format(self.recent_history_current_year_start_date))
-		frappe.errprint("recent_history_last_year_start_date : {0}".format(self.recent_history_last_year_start_date))
-		frappe.errprint("transit_period_start_date : {0}".format(self.transit_period_start_date))
-		frappe.errprint("consumption_period_start_date : {0}".format(self.consumption_period_start_date))
-
 	def set_missing_values(self):
 		self.calculate_dates()
 		self.fill_tables()
@@ -203,7 +198,7 @@ class EstimaciondeCompra(Document):
 			WHERE child.sku = '%(sku)s' 
 			AND parent.year=%(year)s 
 			AND parent.week=%(week)s""" 
-		% {"year" : year, "week" : week, "sku" : sku}, as_dict=True, debug=True)
+		% {"year" : year, "week" : week, "sku" : sku}, as_dict=True)
 
 		if not row and not len(row):
 			frappe.throw("¡No se encontro el SKU <b>{2}</b> para la semana {0}.{1}!"
