@@ -9,7 +9,7 @@ weeks_in_year = 52 #Weeks a year has
 @frappe.whitelist()
 def get_final_order_stock(year, week, sku):	
 	stock = frappe.db.sql("""
-		SELECT onces_total
+		SELECT SUM(child.onces_total)
 		FROM `tabInventario Fisico Helados Items` AS child 
 		JOIN `tabInventario Fisico Helados` AS parent 
 		ON child.parent = parent.name 
@@ -28,12 +28,10 @@ def get_final_order_stock(year, week, sku):
 def get_total_in_transit(sku):	
 	total = frappe.db.sql("""
 		SELECT SUM(order_sku_total)
-		FROM `tabEstimacion SKUs` AS child 
-		JOIN `tabEstimacion de Compra` AS parent 
-		ON child.parent = parent.name 
-		WHERE child.sku = '%(sku)s' 
-		AND parent.was_received <> 1
-		AND parent.docstatus = 1"""
+		FROM `tabEstimacion de Compra`		
+		WHERE sku = '%(sku)s' 
+		AND was_received <> 1
+		AND docstatus = 1"""
 	% { "sku" : sku })
 
 	if total[0][0]:
@@ -176,6 +174,23 @@ def subtract_years(date, years=1):
 	cur_year = get_year(date)
 	last = int(cur_year) - int(years)
 	return "{0}.{1}".format(last, week)
+
+@frappe.whitelist()
+def fetch_as_array(date, weeks):
+	operate_weeks = add_weeks if weeks > 0 else subtract_weeks
+
+	absolute_weeks = abs(weeks) # To make sure we are handling good values
+	array = range(0, absolute_weeks)
+
+	dates_array = []
+	for week in array:
+		dates_array.append(
+			operate_weeks(date, week)
+		)
+
+	return dates_array
+
+
 
 @frappe.whitelist()
 def subtract_one(value):
