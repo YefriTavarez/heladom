@@ -42,6 +42,7 @@ class EstimaciondeCompra(Document):
 		self.transit_period_start_date = add_weeks(self.recent_history_last_year_end_date)
 		self.transit_period_end_date = add_weeks(self.transit_period_start_date, transit_weeks)
 
+
 		self.consumption_period_start_date = add_weeks(self.transit_period_end_date)
 		self.consumption_period_end_date = add_weeks(self.consumption_period_start_date, consumption_weeks)
 
@@ -146,6 +147,7 @@ class EstimaciondeCompra(Document):
 		self.usage_period_table = []
 
 		trend_weeks = int(self.cut_trend)
+		transit_weeks = int(self.transit_weeks)
 
 		trend_date_as_array = fetch_as_array(self.recent_history_current_year_start_date, trend_weeks)
 
@@ -168,7 +170,7 @@ class EstimaciondeCompra(Document):
 			)
 
 
-		transit_date_as_array = fetch_as_array(self.transit_period_start_date, trend_weeks)
+		transit_date_as_array = fetch_as_array(self.transit_period_start_date, transit_weeks)
 
 		for transit_week in transit_date_as_array:
 			year = get_year(transit_week)			

@@ -192,10 +192,10 @@ frappe.ui.form.on('Estimacion de Compra', {
 		console.warn("event type_use_period triggered!");
 	},
 	type: function(frm, cdt, cdn){
-		if (frm.doc.type_use_period == "Presupuesto General") {
+		if (frm.doc.type == "Presupuesto General") {
 			frm.doc.recent_tendency = frm.doc.presup_gral;
 			frm.doc.real_required = parseFloat(frm.doc.total_required + (frm.doc.total_required * frm.doc.presup_gral / 100)).toFixed(2);
-		} else if(frm.doc.type_use_period == "Solo Tend Despacho") {
+		} else if(frm.doc.type == "Solo Tend Despacho") {
 			frm.doc.recent_tendency = frm.doc.tendency;
 			frm.doc.real_required = parseFloat(frm.doc.total_required + (frm.doc.total_required * frm.doc.recent_tendency / 100)).toFixed(2);
 		}
