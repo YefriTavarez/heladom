@@ -9,20 +9,14 @@ import json
 
 class OrdendeCompra(Document):
 	def on_submit(self):							
-		for row in self.estimations_skus:
-			fields_to_update = """SET order_sku_real_reqd = %d,
-								logistica = %d,
-								mercadeo = %d,
-								planta = %d,
-								order_sku_total = %d
-							""" % (row.order_sku_real_reqd, row.logistica, row.mercadeo,
-									row.planta, row.order_sku_total)
-			
-			result = frappe.db.sql("""UPDATE `tabEstimacion SKUs`
-										%s 
-										WHERE parent = '%s' AND sku = '%s'
-									""" % (fields_to_update ,row.estimation_reference, row.sku))
+		esc = frappe.get_doc("Estimacion de Compra", self.created_from)
+		esc.order_sku_real_reqd = self.order_sku_real_reqd
+		esc.logistica = self.logistica
+		esc.mercadeo = self.mercadeo
+		esc.planta = self.planta
+		esc.order_sku_total = self.order_sku_total
 
+		esc.db_update()
 
 @frappe.whitelist()
 def get_estimation_skus(estimation):

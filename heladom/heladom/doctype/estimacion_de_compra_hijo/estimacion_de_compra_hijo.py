@@ -5,10 +5,6 @@
 from __future__ import unicode_literals
 import frappe
 from frappe.model.document import Document
-from heladom.api import validate_current_date
 
-
-class InventarioFisicoHelados(Document):
-	def validate(self):
-		validate_current_date(self.date)
-
+class EstimaciondeCompraHijo(Document):
+	pass

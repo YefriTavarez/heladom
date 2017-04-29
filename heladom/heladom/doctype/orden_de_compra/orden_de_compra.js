@@ -6,8 +6,32 @@ frappe.ui.form.on('Orden de Compra', {
 
 	},
 	on_submit: function(frm){
-		validated = false;
-	}
+		//validated = false;
+	},
+	logistica: function(frm, cdt, cdn){
+
+		frm.doc.order_sku_total = parseFloat(frm.doc.order_sku_real_reqd) + parseFloat(frm.doc.mercadeo + frm.doc.logistica + frm.doc.planta);
+		//frm.doc.order_sku_total = frm.doc.order_sku_total + frm.doc.logistica;
+		frm.doc.level_qty = parseFloat(frm.doc.order_sku_total / frm.doc.piece_by_level).toFixed(2);
+		frm.doc.pallet_qty = parseFloat(frm.doc.order_sku_total / frm.doc.piece_by_pallet).toFixed(2);
+		refresh_many(["order_sku_total","level_qty","pallet_qty"]);
+		console.warn("event triggered!");
+	},
+	mercadeo: function(frm, cdt, cdn){
+		frm.doc.order_sku_total = parseFloat(frm.doc.order_sku_real_reqd) + parseFloat(frm.doc.mercadeo + frm.doc.logistica + frm.doc.planta);
+		//frm.doc.order_sku_total = frm.doc.order_sku_total + frm.doc.mercadeo;
+
+		frm.doc.level_qty = parseFloat(frm.doc.order_sku_total / frm.doc.piece_by_level).toFixed(2);
+		frm.doc.pallet_qty = parseFloat(frm.doc.order_sku_total / frm.doc.piece_by_pallet).toFixed(2);
+		refresh_many(["order_sku_total","level_qty","pallet_qty"]);
+		console.warn("event logistica triggered!");
+	},
+	planta: function(frm, cdt, cdn){
+		frm.doc.order_sku_total = parseFloat(frm.doc.order_sku_real_reqd) + parseFloat(frm.doc.mercadeo + frm.doc.logistica + frm.doc.planta);
+		frm.doc.level_qty = parseFloat(frm.doc.order_sku_total / frm.doc.piece_by_level).toFixed(2);
+		frm.doc.pallet_qty = parseFloat(frm.doc.order_sku_total / frm.doc.piece_by_pallet).toFixed(2);
+		console.warn("event planta triggered!");
+	},
 });
 
 frappe.ui.form.on('Estimaciones Orden de Compra', {
