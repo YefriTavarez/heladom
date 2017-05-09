@@ -97,25 +97,55 @@ def fetch_as_array(date, weeks):
 
 
 @frappe.whitelist()
-def crear_orden_de_compra(estimacion):
-	esc = frappe.get_doc("Estimacion de Compra", estimacion)
-	esc.name = None
-	esc.doctype = "Orden de Compra"
+def crear_orden_de_compra(est_name):
+	estimacion = frappe.get_doc("Estimacion de Compras", est_name)
 
-	import json
-	json_str = frappe.as_json(esc)
-	dictionary = json.loads(json_str)
+	if not estimacion.docstatus == 1:
+		frappe.throw("Estimacion no validada... por favor, presente el documento para confirmar!")
+		
+	order = frappe.new_doc("Purchase Order")
 
-	odc = frappe.get_doc(dictionary)
-	odc.docstatus = DRAFT
-	odc.created_from = estimacion
-	odc.insert()
+	# defaults
+	order.total = 0
+	order.created_from = est_name
+	order.transaction_date = estimacion.date
+	order.supplier = estimacion.supplier
+	order.supplier_rnc = frappe.get_value("Supplier", estimacion.supplier, "rnc")
 
-	return odc.name
+	for sku in estimacion.items:
+		detalle = frappe.get_doc("Detalle de Estimacion", sku.codigo)
+		item = frappe.get_doc("Item", detalle.sku_name)
+
+		# default values
+		schedule_date = frappe.utils.add_days(detalle.date, (detalle.transit_weeks * 7))
+		defaults = frappe.utils.get_defaults()
+		amount = float(item.standard_rate) * float(detalle.order_sku_total)
+		order.total += amount
+
+		# append the values
+		order.append("items", {
+			"item_code" : detalle.sku_name,
+			"item_name" : detalle.sku_name,
+			"schedule_date" : schedule_date,
+			"description": item.description,
+			"qty": detalle.order_sku_total,
+			"stock_uom": item.stock_uom,
+			"uom": item.stock_uom,
+			"conversion_factor": 1,
+			"warehouse": defaults.warehouse,
+			"rate": item.standard_rate,
+			"amount": amount,
+			"base_rate": item.standard_rate,
+			"base_amount": amount,
+		})
+	
+	# order.insert()
+
+	return order.as_dict()
 
 @frappe.whitelist()
 def existe_orden_de_compra(estimacion):
-	order_list = frappe.get_list("Orden de Compra",
+	order_list = frappe.get_list("Purchase Order",
 		filters={
 			"created_from": estimacion,
 			"docstatus": ("!=",CANCELLED)

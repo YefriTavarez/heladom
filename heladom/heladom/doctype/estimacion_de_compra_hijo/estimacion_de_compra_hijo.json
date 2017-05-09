@@ -211,7 +211,7 @@
    "unique": 0
   }, 
   {
-   "allow_on_submit": 0, 
+   "allow_on_submit": 1, 
    "bold": 0, 
    "collapsible": 0, 
    "columns": 1, 
@@ -250,7 +250,7 @@
  "issingle": 0, 
  "istable": 1, 
  "max_attachments": 0, 
- "modified": "2017-04-26 14:01:08.899056", 
+ "modified": "2017-05-08 00:47:01.794538", 
  "modified_by": "Administrator", 
  "module": "Heladom", 
  "name": "Estimacion de Compra Hijo", 

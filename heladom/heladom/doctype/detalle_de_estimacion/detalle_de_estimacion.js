@@ -6,7 +6,6 @@ moment().format('LLLL')
 frappe.ui.form.on('Detalle de Estimacion', {
 	refresh: function(frm) {
 		frm.trigger("date")
-		frm.trigger("existe_orden_de_compra")
 
 		if (!frm.doc.parent) {
 			frm.trigger("estimacion_de_compra")
@@ -117,9 +116,9 @@ frappe.ui.form.on('Detalle de Estimacion', {
 	},
 	after_save: function(frm) {
 		if (!frappe.route_history) return
-
-		$.each(frappe.route_history, function(key,history){
-			if (history[1] == "Estimacion de Compras") {
+		var reversed_history = frappe.route_history.reverse()
+		$.each(reversed_history, function(key,history){
+			if (history[0] == "Form" && history[1] == "Estimacion de Compras") {
 				setTimeout(function(){
 					frappe.set_route(history)
 				}, 999)
@@ -127,38 +126,6 @@ frappe.ui.form.on('Detalle de Estimacion', {
 		})
 
 		frm.reload_doc()
-	},
-	existe_orden_de_compra: function(frm) {
-		if (!frm.doc.docstatus == 1) return
-
-		frappe.call({
-			method: "heladom.api.existe_orden_de_compra",
-			args: {
-				"estimacion": frm.docname
-			},
-			callback: function(response) {
-				if (response.message) {
-					frm.add_custom_button("Ver Orden", function(event) {
-						frappe.set_route("Form", "Orden de Compra", response.message)
-					})
-				} else {
-					frm.add_custom_button("Crear Orden", function(event) {
-						frappe.call({
-							method: "heladom.api.crear_orden_de_compra",
-							args: {
-								"estimacion": frm.docname
-							},
-							callback: function(response) {
-								if (response.message) {
-									frappe.set_route("Form", "Orden de Compra", response.message)
-								}
-							}
-						})
-					})
-				}
-			}
-		})
-
 	},
 	sku: function(frm) {
 		if (!frm.doc.sku || !frm.doc.date) return

@@ -44,6 +44,8 @@ frappe.ui.form.on('Estimacion de Compras', {
 			if(frm.doc.__islocal || frm.doc.modified == data.modified) return
 			setTimeout(function(){ frm.reload_doc() }, 1000)
 		})
+
+		frm.trigger("existe_orden_de_compra")
 	},
 	onload: function(frm) {
 		setTimeout(function() {
@@ -160,6 +162,39 @@ frappe.ui.form.on('Estimacion de Compras', {
 			$c('runserverobj', {'method': 'crear_estimacion', 'docs': frm.doc }, callback)
 		},
 		"Listado SKU", "Continuar")
+
+	},
+	existe_orden_de_compra: function(frm) {
+		if (!frm.doc.docstatus == 1) return
+
+		frappe.call({
+			method: "heladom.api.existe_orden_de_compra",
+			args: {
+				"estimacion": frm.docname
+			},
+			callback: function(response) {
+				if (response.message) {
+					frm.add_custom_button("Ver Orden", function(event) {
+						frappe.set_route("Form", "Orden de Compra", response.message)
+					})
+				} else {
+					frm.add_custom_button("Crear Orden", function(event) {
+						frappe.call({
+							method: "heladom.api.crear_orden_de_compra",
+							args: {
+								"est_name": frm.docname
+							},
+							callback: function(response) {
+								if (response.message) {
+									doc = frappe.model.sync(response.message)[0]
+									frappe.set_route("Form", doc.doctype, doc.name)
+								}
+							}
+						})
+					})
+				}
+			}
+		})
 
 	},
 })
