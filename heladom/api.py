@@ -5,8 +5,7 @@ import frappe
 from constants import ZERO, DRAFT, SUBMITTED, CANCELLED, MONDAY, WEEK_DAYS, WEEKS_IN_YEAR
 
 def get_final_order_stock(date, sku):	
-	stock = frappe.db.sql("""
-		SELECT SUM(child.onces_total)
+	stock = frappe.db.sql("""SELECT SUM(child.onces_total)
 		FROM `tabInventario Fisico Helados Items` AS child 
 		JOIN `tabInventario Fisico Helados` AS parent 
 		ON child.parent = parent.name 
@@ -20,8 +19,7 @@ def get_final_order_stock(date, sku):
 	return float(ZERO)
 
 def get_total_in_transit(sku):	
-	total = frappe.db.sql("""
-		SELECT SUM(order_sku_total)
+	total = frappe.db.sql("""SELECT SUM(order_sku_total)
 		FROM `tabDetalle de Estimacion`		
 		WHERE sku = '%(sku)s' 
 		AND was_received <> 1
@@ -47,27 +45,19 @@ def get_average(start_date, end_date, sku):
 	return round(average, 2)
 
 def get_sku_list(supplier, sku_group=None):
-	def get_filters(sku_group):
-		if sku_group:
-			return "AND item.item_group = '{0}'".format(sku_group)
 
-		return ""
+	# set the filters if the sku_group is set
+	filters = { "item_group": sku_group } if sku_group else { }
 
-	return frappe.db.sql("""
-		SELECT sku.name sku, sku.item sku_name, sku.able_to_estamation, sku.available_locally, sku.pieces_per_level, 
-			sku.rotation_key, sku.code, sku.pieces_per_pallet, sku.arancel, sku.generic
-		FROM tabSKU AS sku 
-		JOIN tabItem AS item 
-		ON sku.item = item.name 
-		WHERE item.default_supplier = '%(default_supplier)s'
-		AND sku.able_to_estamation = 1 %(filter)s"""
-	% { "default_supplier": supplier, "filter": get_filters(sku_group) }, as_dict=True)
+	# return the results
+	return frappe.get_list(doctype="Item", fields="*", filters=filters)
 
 def validate_current_date(date):
-	from datetime import datetime
-	dateobj = date if not isinstance(date, unicode) else datetime.strptime(date,"%Y-%m-%d")
+	from datetime.datetime import strptime
+
+	dateobj = strptime(date,"%Y-%m-%d") if isinstance(date, basestring) else date
 	if not dateobj.isoweekday() == MONDAY:
-		frappe.throw(msg="Valor del campo <i>Fecha</i> debe corresponder a un lunes de la semana",title="Error de Fecha")
+		frappe.throw(msg="Valor del campo <b>Fecha</b> debe corresponder a un <i>lunes</i> de la semana", title="Error de Fecha")
 
 
 def add_days(date, days):
@@ -101,7 +91,7 @@ def crear_orden_de_compra(est_name):
 	estimacion = frappe.get_doc("Estimacion de Compras", est_name)
 
 	if not estimacion.docstatus == 1:
-		frappe.throw("Estimacion no validada... por favor, presente el documento para confirmar!")
+		frappe.throw("¡Estimacion no validada... por favor, presente el documento para confirmar!")
 		
 	order = frappe.new_doc("Purchase Order")
 
@@ -114,7 +104,7 @@ def crear_orden_de_compra(est_name):
 
 	for sku in estimacion.items:
 		detalle = frappe.get_doc("Detalle de Estimacion", sku.codigo)
-		item = frappe.get_doc("Item", detalle.sku_name)
+		item = frappe.get_doc("Item", detalle.sku)
 
 		# default values
 		schedule_date = frappe.utils.add_days(detalle.date, (detalle.transit_weeks * 7))
@@ -124,8 +114,8 @@ def crear_orden_de_compra(est_name):
 
 		# append the values
 		order.append("items", {
-			"item_code" : detalle.sku_name,
-			"item_name" : detalle.sku_name,
+			"item_code" : item.item_code,
+			"item_name" : item.item_name,
 			"schedule_date" : schedule_date,
 			"description": item.description,
 			"qty": detalle.order_sku_total,

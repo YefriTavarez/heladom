@@ -17,7 +17,6 @@ class EstimaciondeCompras(Document):
 
 		self.set_header_info()
 		self.update_detalles()
-		frappe.errprint("validate")
 
 	def update_detalles(self):
 		for d in frappe.get_list("Detalle de Estimacion", fields=["name", "parent"]):
@@ -90,7 +89,7 @@ class EstimaciondeCompras(Document):
 			frappe.throw("Missing SKU")
 
 		if self.is_new():
-			frappe.throw(msg="Estimacion de Compra no encontrado", title="Atencion")
+			frappe.throw(msg="<b>Estimacion de Compra</b> no encontrada!", title="Atencion")
 
 		detalle_estimacion = frappe.get_doc({
 			"doctype" : "Detalle de Estimacion", 
@@ -115,33 +114,34 @@ class EstimaciondeCompras(Document):
 	def crear_estimaciones(self):
 		for sku in self.listado_skus():
 			if self.rotation_key and not self.rotation_key == sku.rotation_key:
-					continue
-
-			if self.estimation_type:
-				item_group = frappe.db.get_value("Item", sku.item, "item_group")
-
-				if not item_group == self.estimation_type:
-					continue
-
-			if self.sku_able and not sku.able_to_estamation:
 				continue
 
-			self.sku = sku.name # set global to access it from crear_estimacion
+			if not sku.item_group == self.estimation_type:
+				continue
+
+			if self.sku_able and not sku.able:
+				continue
+
+			# set global to access it from crear_estimacion
+			self.sku = sku.name
 			detalle_estimacion = self.crear_estimacion()
-			# self.append("items", {
-			# 	"cierre": detalle_estimacion.date,
-			# 	"codigo": detalle_estimacion.name,
-			# 	"promedio": detalle_estimacion.current_year_avg,
-			# 	"detalle_estimacion": detalle_estimacion.name,
-			# 	"duracion": detalle_estimacion.coverage_weeks,
-			# 	"descripcion": "{0} {1}".format(detalle_estimacion.sku, detalle_estimacion.sku_name)
-			# })
+
 		self.save()
 
 	def listado_skus(self):
-		return frappe.get_list("SKU", fields=["name", "rotation_key", "item", "able_to_estamation"])
+		
+		# let's set the filters
+		filters = {"is_sku": 1}
+		
+		# now we're listing the fileds that we want
+		field_list = ["name", "rotation_key", "item_name", "able", "item_group"]
+
+		# query and return the results
+		return frappe.get_list("Item", field_list, filters)
 
 	def on_trash(self):
+
+		# empty the list
 		self.linked_docs = []
 
 		for child in self.items:
@@ -156,4 +156,4 @@ class EstimaciondeCompras(Document):
 				doc = frappe.get_doc("Detalle de Estimacion", docname)
 				doc.delete()
 			except:
-				frappe.errprint("Detalle de Estimacion {} ya fue borrada!".format(docname))
+				pass # any errors in here? let's just ignore them

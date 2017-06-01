@@ -5,7 +5,7 @@ from . import __version__ as app_version
 app_name = "heladom"
 app_title = "Heladom"
 app_publisher = "Soldeva SRL"
-app_description = "Aplicacion para el manejo de la compania Heladom"
+app_description = "Aplicacion para el manejo de la compañia Heladom"
 app_icon = "octicon octicon-package"
 app_color = "#e27eb1"
 app_email = "servicio@soldeva.com"

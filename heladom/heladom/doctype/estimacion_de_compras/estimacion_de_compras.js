@@ -120,15 +120,23 @@ frappe.ui.form.on('Estimacion de Compras', {
 		refresh_many(["coverage_weeks", "coverage_date"])
 	},
 	crear_estimaciones: function(frm) {
+
+		// freeze the screen so the user can get
+		// to know that its request is being processed
+		frappe.dom.freeze("Espere...")
+
+
 		var callback = function(response) {
+			// exit the function if nothing 
+			// is sent back from the server
 			if (!response) return
-			frappe.model.trigger("*", "*", cur_frm.doc) //to trigger the unsaved status
+
+			//frappe.model.trigger("*", "*", frm.doc) //to trigger the unsaved status
 			frm.reload_doc()
 			frappe.dom.unfreeze()
 		}
 
-		frappe.dom.freeze("Espere...")
-		$c('runserverobj', args = { 'method': 'crear_estimaciones', 'docs': frm.doc }, callback = callback)
+		$c('runserverobj', { 'method': 'crear_estimaciones', 'docs': frm.doc }, callback)
 
 		frm.set_df_property("crear_estimaciones", "hidden", 1)
 	},
@@ -149,13 +157,14 @@ frappe.ui.form.on('Estimacion de Compras', {
 			refresh_field("items")
 		}
 
-		frappe.prompt({
+		var sku_field = {
 			"label": "SKU",
 			"fieldname": "sku",
 			"fieldtype": "Link",
-			"options": "SKU"
-		}, 
-		function(data) {
+			"options": "Item"
+		}
+
+		frappe.prompt(sku_field, function(data) {
 			if (!data.sku) return
 
 			frm.doc.sku = data.sku

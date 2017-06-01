@@ -147,8 +147,8 @@ class DetalledeEstimacion(Document):
 
 
 
-		self.piece_by_level = frappe.db.get_value("SKU", self.sku, "pieces_per_level")
-		self.piece_by_pallet = frappe.db.get_value("SKU", self.sku, "pieces_per_pallet")
+		self.piece_by_level = frappe.db.get_value("Item", self.sku, "units_in_level")
+		self.piece_by_pallet = frappe.db.get_value("Item", self.sku, "units_in_pallet")
 
 		self.level_qty = float(self.order_sku_total) / float(self.piece_by_level)
 		self.pallet_qty = float(self.order_sku_total) / float(self.piece_by_pallet)
