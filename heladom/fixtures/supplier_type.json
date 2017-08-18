@@ -1,0 +1,52 @@
+[
+ {
+  "accounts": [], 
+  "credit_days": 0, 
+  "credit_days_based_on": "", 
+  "docstatus": 0, 
+  "doctype": "Supplier Type", 
+  "modified": "2017-07-31 13:30:25.215512", 
+  "name": "Interno", 
+  "supplier_type": "Interno"
+ }, 
+ {
+  "accounts": [], 
+  "credit_days": 0, 
+  "credit_days_based_on": "", 
+  "docstatus": 0, 
+  "doctype": "Supplier Type", 
+  "modified": "2017-01-12 10:26:27.032328", 
+  "name": "Local", 
+  "supplier_type": "Local"
+ }, 
+ {
+  "accounts": [], 
+  "credit_days": 0, 
+  "credit_days_based_on": "", 
+  "docstatus": 0, 
+  "doctype": "Supplier Type", 
+  "modified": "2017-01-12 13:54:13.187240", 
+  "name": "International", 
+  "supplier_type": "International"
+ }, 
+ {
+  "accounts": [], 
+  "credit_days": 0, 
+  "credit_days_based_on": "", 
+  "docstatus": 0, 
+  "doctype": "Supplier Type", 
+  "modified": "2017-07-17 10:06:52.366756", 
+  "name": "Refrigerado Int", 
+  "supplier_type": "Refrigerado Int"
+ }, 
+ {
+  "accounts": [], 
+  "credit_days": 0, 
+  "credit_days_based_on": "", 
+  "docstatus": 0, 
+  "doctype": "Supplier Type", 
+  "modified": "2017-07-17 10:07:00.989933", 
+  "name": "Seco Int", 
+  "supplier_type": "Seco Int"
+ }
+]

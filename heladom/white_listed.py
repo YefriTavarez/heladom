@@ -12,10 +12,7 @@ def get_list(doctype):
         WHERE docstatus <> 2 ORDER BY name ASC""".format(doctype),
         as_dict=True)
 
-    if not doclist:
-        return []
-
-    return doclist
+    return doclist or []
 
 def get_script(doctype):
     return """frappe.ui.form.on("%(doctype)s", "refresh", function(frm){
@@ -87,3 +84,9 @@ def setup_navigation_buttons():
 @frappe.whitelist()
 def money_in_words(number, main_currency=None, fraction_currency=None):
     return frappe.utils.money_in_words(number, main_currency, fraction_currency)
+
+@frappe.whitelist()
+def get_week_day_set():
+    from constants import WEEK_DAY_SET
+
+    return WEEK_DAY_SET

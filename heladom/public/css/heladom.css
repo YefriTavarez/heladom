@@ -1,0 +1,92 @@
+em, 
+img, 
+svg,
+image, 
+video, 
+audio, 
+embed, 
+iframe, 
+object, 
+button, 
+canvas,
+figure:empty {
+	filter: invert(100%) !important;
+	-webkit-filter: invert(100%) !important;
+}
+
+.img:empty,
+.btn:empty,
+.logo:empty,
+.image:empty,
+.photo:empty,
+.button:empty,
+[role='button'],
+[style*='background:url']:not(html):not(body):not(input),
+[style*='background: url']:not(html):not(body):not(input),
+[style*='background-image']:not(html):not(body):not(input) {
+	filter: invert(100%) !important;
+	-webkit-filter: invert(100%) !important;
+}
+
+:-webkit-full-screen img,
+:-webkit-full-screen svg,
+:-webkit-full-screen video,
+:-webkit-full-screen embed,
+:-webkit-full-screen object,
+:-webkit-full-screen canvas,
+:-webkit-full-screen button  {
+	filter: invert(0%) !important;
+	-webkit-filter: invert(0%) !important;
+}
+
+:-moz-full-screen img,
+:-moz-full-screen svg,
+:-moz-full-screen video,
+:-moz-full-screen embed,
+:-moz-full-screen object,
+:-moz-full-screen canvas,
+:-moz-full-screen button  {
+filter: invert(0%) !important;
+-webkit-filter: invert(0%) !important;
+}
+
+html {
+	filter: invert(85%) hue-rotate(195deg) !important
+}
+
+input[type=checkbox]:checked:before {
+	color: #4c4c4c;
+}
+
+input[type=checkbox]:checked:before {
+	color: #a7a7a7;
+}
+
+.navbar-new-comments {
+	color: #000;
+	background-color: #b1b1b1 !important; 
+}
+
+#page-desktop {
+	background-color: #fff !important;
+}
+
+.navbar-default {
+	background-color: #e9e9e9;
+	border-color: #e9e9e9;
+}
+
+.btn-default {
+	color: inherit;
+	background-color: #e7e7e7;
+	border-color: transparent;
+}
+
+.circle {
+	background-color: #434343;
+}
+
+.case-label {
+	color: #767676;
+	text-shadow: none; 
+}

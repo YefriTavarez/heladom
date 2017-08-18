@@ -6,42 +6,15 @@ from __future__ import unicode_literals
 
 import frappe, heladom.api
 from frappe.model.document import Document
-from heladom.constants import WEEK_DAYS, ONE_YEAR
+from heladom.constants import WEEK_DAYS, ONE_YEAR, WEEK_DAY_SET
 
+day = frappe.db.get_single_value("Configuracion", "default_week_day", cache=False)
+week_day = [e.get("label") for e in WEEK_DAY_SET if e.get("value") == str(day)][0]
 
 class DetalledeEstimacion(Document):
-	def update_parent(self):
-		if not self.parent:
-			return
-
-		parent = frappe.get_doc("Estimacion de Compras", self.parent)
-
-		def get_row(child_table):
-			for child in child_table:
-				if child.codigo == self.name:
-					return child
-			else:
-				return parent.append("items", {
-					"cierre": self.date,
-					"codigo": self.name,
-					"descripcion": "{0} {1}".format(self.sku, self.sku_name),
-					"promedio": self.current_year_avg,
-					"duracion": self.coverage_weeks,
-					"prevision": self.required_qty,
-				})
-
-		child = get_row(parent.items)
-
-		child.promedio = self.current_year_avg
-		child.duracion = self.coverage_weeks
-		child.prevision = self.required_qty
-
-		parent.save()
-		self.db_update()
-
 	def calculate_dates(self):
 		from heladom.api import add_weeks, add_years, add_days
-		heladom.api.validate_current_date(self.date)
+		heladom.api.validate_current_date(self.date, day, week_day)
 
 		cutoff_trend = int(self.cut_trend)
 		self.recent_history_current_year_start_date = add_weeks(self.date, -cutoff_trend + 1) # usually 10 weeks back
@@ -65,7 +38,7 @@ class DetalledeEstimacion(Document):
 
 		from heladom.api import get_average
 
-		#####SECCION HISTORIA RECIENTE ######
+		##### SECCION HISTORIA RECIENTE ######
 
 		self.current_year_avg = get_average(
 			self.recent_history_current_year_start_date,
@@ -79,7 +52,6 @@ class DetalledeEstimacion(Document):
 			self.sku
 		)
 
-
 		trend_tmp = 1 #to avoid issues
 		try:
 			trend_tmp = float(self.current_year_avg) / float(self.last_year_avg)
@@ -90,7 +62,7 @@ class DetalledeEstimacion(Document):
 		trend = (decimal_trend * 100)
 		self.tendency = round(trend, 2)
 
-		#####SECCION PERIODO EN TRANSITO ######
+		##### SECCION PERIODO EN TRANSITO ######
 
 		self.desp_avg = get_average(
 			self.transit_period_start_date, 
@@ -107,7 +79,7 @@ class DetalledeEstimacion(Document):
 		
 		self.type = "Solo Tend Despacho"
 
-		#####SECCION PERIODO DE USO ######
+		##### SECCION PERIODO DE USO ######
 		from heladom.api import get_final_order_stock
 		
 		self.avg_use_period = get_average(
@@ -130,7 +102,7 @@ class DetalledeEstimacion(Document):
 		self.trasit_weeks = self.transit_weeks
 		self.type_use_period = "Presupuesto General"
 
-		#####SECCION ORDEN FINAL ######
+		##### SECCION ORDEN FINAL ######
 		from heladom.api import get_total_in_transit
 
 		self.general_coverage = int(self.coverage_weeks)
@@ -145,19 +117,17 @@ class DetalledeEstimacion(Document):
 		self.order_sku_real_reqd = round(order_sku_real_reqd)
 		self.order_sku_total = self.order_sku_real_reqd
 
-
-
 		self.piece_by_level = frappe.db.get_value("Item", self.sku, "units_in_level")
 		self.piece_by_pallet = frappe.db.get_value("Item", self.sku, "units_in_pallet")
 
-		self.level_qty = float(self.order_sku_total) / float(self.piece_by_level)
-		self.pallet_qty = float(self.order_sku_total) / float(self.piece_by_pallet)
+		if self.piece_by_level:
+			self.level_qty = float(self.order_sku_total) / float(self.piece_by_level)
+
+		if self.piece_by_pallet:
+			self.pallet_qty = float(self.order_sku_total) / float(self.piece_by_pallet)
 
 	def fill_tables(self):
 		from heladom.api import fetch_as_array
-
-		# if not hasattr(self, "cur_year"):
-		#   self.calculate_dates()
 
 		self.current_period_table = []
 		self.previous_period_table = []
@@ -197,19 +167,23 @@ class DetalledeEstimacion(Document):
 			)
 
 	def get_physical_stock_as_dict(self, date, sku):
-		from heladom.api import first
+		import heladom.api
+
 		row = frappe.db.sql("""SELECT parent.date AS ciclo, child.consumo AS desp, child.onces_total AS exist
-			FROM `tabInventario Fisico Helados` AS parent 
-			JOIN `tabInventario Fisico Helados Items` AS child 
-			ON parent.name = child.parent 
-			WHERE child.sku = '%(sku)s' 
-			AND parent.date = '%(date)s'""" 
+			FROM 
+				`tabInventario Fisico Helados` AS parent 
+			JOIN 
+				`tabInventario Fisico Helados Items` AS child 
+			ON 
+				parent.name = child.parent 
+			WHERE
+				child.sku = '%(sku)s' 
+			AND 
+				parent.date = '%(date)s'""" 
 		% {"date": date, "sku" : sku}, as_dict=True)
 
-		if not row and not len(row):
-			#frappe.throw("¡No se encontro el SKU <b>{1}</b> para la fecha {0}!"
-			#   .format(date, sku))
-			return { "ciclo": 0,"desp": 0, "exist":0 }
+		if not row:
+			return { "ciclo": 0, "desp": 0, "exist":0 }
 		
-		return first(row)
+		return heladom.api.first(row)
 	

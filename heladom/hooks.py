@@ -11,12 +11,15 @@ app_color = "#e27eb1"
 app_email = "servicio@soldeva.com"
 app_license = "MIT"
 
+# Fixtures
+fixtures = ["Custom Script", "Custom Field", "Supplier Type"]
+
 # Includes in <head>
 # ------------------
 
 # include js, css files in header of desk.html
-# app_include_css = "/assets/heladom/css/heladom.css"
-# app_include_js = "/assets/heladom/js/heladom.js"
+app_include_css = "/assets/heladom/css/heladom.css"
+app_include_js = "/assets/heladom/js/heladom.js"
 
 # include js, css files in header of web template
 # web_include_css = "/assets/heladom/css/heladom.css"
@@ -77,6 +80,12 @@ app_license = "MIT"
 # 		"on_trash": "method"
 #	}
 # }
+
+doc_events = {
+	"Item": {
+		"validate": "heladom.data.item_validate"
+	}
+}
 
 # Scheduled Tasks
 # ---------------

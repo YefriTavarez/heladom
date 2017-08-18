@@ -1,99 +1,114 @@
 // Copyright (c) 2016, Soldeva SRL and contributors
 // For license information, please see license.txt
 
-moment.locale('es')
-moment().format('LLLL')
-
 frappe.ui.form.on('Estimacion de Compras', {
-	setup: function(frm){
-		setTimeout(function() {
-			var add_row_button = $(".btn.btn-xs.btn-default.grid-add-row")
-			add_row_button.unbind() // to remove the default events
-			add_row_button.on("click", function(event) {
-				frm.trigger("agregar_estimacion")
-			})
-		},500)
-	},
 	refresh: function(frm) {
 
-		if (!frm.doc.__islocal) {
-			$.each(["presup_gral", "codigo"], function(idx, field) {
-				frm.set_df_property(field, "read_only", frm.doc.items.length? 0: 1)
-			})
-
-			frm.set_df_property("crear_estimaciones", "hidden", frm.doc.items.length? 1: 0)
-
-			frm.add_custom_button(__("Refrescar"), function(data) {
-				frm.reload_doc()
-			}, "Menu")
-
-			frm.add_custom_button(__("Nuevo"), function(data) {
-				frappe.new_doc(frm.doctype, true)
-			}, "Menu")
-
-			frm.add_custom_button(__("Eliminar"), function(data) {
-				frappe.model.delete_doc(frm.doctype, frm.docname, function(response) {
-					if (response) {
-						frappe.set_route("List", frm.doctype)
-					}
-				})
-			}, "Menu")
+		if ( !frm.doc.__islocal) {
+			frm.page.menu_btn_group.removeClass("hide")
 		}
 
-		frappe.db.get_value(frm.doctype, frm.docname, "modified", function(data){
-			if(frm.doc.__islocal || frm.doc.modified == data.modified) return
-			setTimeout(function(){ frm.reload_doc() }, 1000)
-		})
-
-		frm.trigger("existe_orden_de_compra")
+		frm.trigger("refresh_triggers")
 	},
 	onload: function(frm) {
-		setTimeout(function() {
-			//$(".row-index.col.col-xs-1").hide()
-			//$(".close.btn-open-row").hide() //a pedido de @Jesus Salcie
-
-			frm.trigger("date")
-
-			$(".data-row.row.sortable-handle").unbind("click")
-			$(".static-area.ellipsis").last().hide()
-			$(".btn.btn-xs.btn-default.grid-add-row").text("Agregar Fila")
-		}, 100)
 
 	},
-	codigo: function(frm) {
-		if (frm.doc.__islocal && frm.doc.codigo) {
-			//frm.set_intro("Guarde el documento para poder continuar!")
-			frm.save()
+	onload_post_render: function(frm) { // check for new status field
+		var doctype = "Purchase Order"
+		var fields = ["name"]
+		var filters = {
+			"created_from": frm.docname,
+			"docstatus": ["!=", "2"]
 		}
+
+		var callback = function(data) {
+			frm.doc.has_purchase_order = !!data
+		}
+
+		frappe.db.get_value(doctype, filters, fields, callback)
+	},
+	setup: function(frm) {
+		if ( !(frm.doc.date || frm.doc.docstatus)) {
+
+			frm.doc.sku_list_prompt = undefined
+			frm.doc.date_picker_prompt = undefined
+		}
+	},
+	refresh_triggers: function(frm) {
+
+		frm.trigger("set_queries")
+		frm.trigger("existe_orden_de_compra")
+
+		if ( !frm.doc.__islocal) {
+			frm.trigger("paint_detalles_estimacion")
+		} else {
+			// hide the button
+			frm.set_df_property("crear_estimaciones", "hidden", "true")
+		}
+
+		frm.set_df_property("date", "read_only", !!frm.doc.date)
 	},
 	date: function(frm) {
-		//if there is not date then exit the function
-		if (!frm.doc.date) {
+		var today = frm.doc.date
+
+		// if there is not date then exit the function
+		if ( !today) {
+
+			return 1.000
+		} 
+
+		frappe.call({
+			"method": "heladom.api.validate_estimation_date",
+			"args": {
+				"date": frm.doc.date
+			},
+			"error": function(response) {
+				setTimeout(function() {
+					frm.doc.date = undefined
+					refresh_field("date")
+				}, 999)
+			}
+		})
+
+		var last_year = frappe.datetime.add_months(today, -12)
+
+		frm.set_value("start_date", last_year)
+		frm.set_value("end_date", today)
+	},
+	supplier: function(frm) {
+		if ( !frm.doc.date) {
 			frm.doc.date = frappe.datetime.get_today()
-			refresh_field("date")
 		}
 
-		var date_obj = new Date(frm.doc.date)
-		var moment_obj = moment(date_obj).utc()
+		var doctype = "Supplier"
+		var docname = frm.doc.supplier
+		var fields = {
+			"historia_reciente": "cut_trend",
+			"transito": "transit_weeks",
+			"cobertura": "coverage_weeks",
+			"prevision_minima": "presup_gral",
+			"keys": function() {
+				var fields = []
 
-		frm.doc.start_date = frappe.datetime.add_months(frm.doc.date, -12)
-		frm.doc.end_date = frm.doc.date
+				$.each(this, function(key, value) {
+					key != "keys" && fields.push(key)
+				})
 
-		//if not transit weeks then set it to 0
-		if (!frm.doc.transit_weeks) {
-			frm.doc.transit_weeks = 0
+				return fields
+			}
 		}
 
-		var date_obj_js = new Date(frm.doc.date)
-		var iso_start_of_week = moment(date_obj_js).utc().startOf('isoWeek') //Monday
+		var callback = function(data) {
+			$.each(data, function(idx, value) {
+				frm.set_value(fields[idx], value)
+			})
 
-		//frm.doc.sku = undefined
+			frm.trigger("date")
+		}
 
-		//trigger the transit weeks event
-		frm.trigger("transit_weeks")
+		frappe.db.get_value(doctype, docname, fields.keys(), callback)
 	},
 	transit_weeks: function(frm) {
-		var me = this
 		var date = new Date(frm.doc.date)
 		var momt = moment(date).utc()
 		momt.add(frm.doc.transit_weeks * 7, 'days')
@@ -109,7 +124,7 @@ frappe.ui.form.on('Estimacion de Compras', {
 
 		frm.doc.consumption_date = momt.format("ddd, D MMM YYYY")
 		frm.doc.consumption_weeks = frm.doc.coverage_weeks - frm.doc.transit_weeks
-		if (!frm.doc.consumption_weeks) {
+		if ( !frm.doc.consumption_weeks) {
 			frm.doc.consumption_weeks = frm.doc.coverage_weeks - frm.doc.transit_weeks + 1
 		}
 		refresh_many(["consumption_date", "consumption_weeks"])
@@ -121,119 +136,216 @@ frappe.ui.form.on('Estimacion de Compras', {
 	},
 	crear_estimaciones: function(frm) {
 
-		// freeze the screen so the user can get
-		// to know that its request is being processed
-		frappe.dom.freeze("Espere...")
-
-
-		var callback = function(response) {
-			// exit the function if nothing 
-			// is sent back from the server
-			if (!response) return
-
-			//frappe.model.trigger("*", "*", frm.doc) //to trigger the unsaved status
-			frm.reload_doc()
-			frappe.dom.unfreeze()
+		if (frm.doc.__islocal) {
+			frappe.throw("¡Guarde el documento para poder continuar!")
 		}
 
-		$c('runserverobj', { 'method': 'crear_estimaciones', 'docs': frm.doc }, callback)
-
-		frm.set_df_property("crear_estimaciones", "hidden", 1)
+		frappe.call({
+			"freeze": true,
+			"freeze_message": "Espere...",
+			"method": "crear_estimaciones",
+			"doc": frm.doc,
+			"callback": function(response) {
+				frm.reload_doc()
+			},
+		})
 	},
-	agregar_estimacion: function(frm, cdt, cdn) {
-		var row = locals[cdt][cdn]
-		var callback = function(response) {
-			var data = response.message
-
-			row.cierre = frm.doc.date
-			row.codigo = frm.doc.codigo
-			row.descripcion = data.sku + " " + data.sku_name
-			row.promedio = 0
-			row.prevision = 0
-			row.orden = 0
-			row.duracion = 0
-
-			frappe.set_route("Form", "Detalle de Estimacion", data.name)
-			refresh_field("items")
+	agregar_estimacion: function(frm) {
+		if (frm.doc.__islocal) {
+			frappe.throw("¡Guarde el documento para poder continuar!")
 		}
 
+		var btn = "Continuar"
+		var title = "Listado SKU"
 		var sku_field = {
 			"label": "SKU",
 			"fieldname": "sku",
 			"fieldtype": "Link",
+			"reqd": "1",
 			"options": "Item"
 		}
 
-		frappe.prompt(sku_field, function(data) {
-			if (!data.sku) return
+		var callback = function(data) {
 
-			frm.doc.sku = data.sku
-			$c('runserverobj', {'method': 'crear_estimacion', 'docs': frm.doc }, callback)
-		},
-		"Listado SKU", "Continuar")
-
-	},
-	existe_orden_de_compra: function(frm) {
-		if (!frm.doc.docstatus == 1) return
-
-		frappe.call({
-			method: "heladom.api.existe_orden_de_compra",
-			args: {
-				"estimacion": frm.docname
-			},
-			callback: function(response) {
-				if (response.message) {
-					frm.add_custom_button("Ver Orden", function(event) {
-						frappe.set_route("Form", "Orden de Compra", response.message)
-					})
-				} else {
-					frm.add_custom_button("Crear Orden", function(event) {
-						frappe.call({
-							method: "heladom.api.crear_orden_de_compra",
-							args: {
-								"est_name": frm.docname
-							},
-							callback: function(response) {
-								if (response.message) {
-									doc = frappe.model.sync(response.message)[0]
-									frappe.set_route("Form", doc.doctype, doc.name)
-								}
-							}
-						})
-					})
-				}
+			var _method = "crear_estimacion"
+			var _args = {
+				"sku": data.sku
 			}
-		})
 
-	},
-})
+			var _callback = function(response) {
 
+				var doc = frappe.model.sync(response.message)[0]
+				var form = "Form"
 
-frappe.ui.form.on("Estimacion de Compra Hijo", {
-	onload: function(frm) {
-		setTimeout(function() {
-			$(".row-index.col.col-xs-1").hide()
-		}, 500)
-	},
-	items_remove: function(frm, cdt, cdn) {
-		var callback = function(response){
-			$.each(response.message, function(idx, value) {
-				frappe.show_alert(
-					repl("Detalle <i>%(estimacion)s</i> ha sido eliminada",{"estimacion": value})
-				)
-			})
-			frm.reload_doc()
-		};
+				var doctype = doc.doctype
+				var docname = doc.name
 
-		$c('runserverobj', {'method': 'remove_complement', 'docs': frm.doc }, callback)
-	},
-	ver_detalle: function(frm, cdt, cdn) {
-		var row = locals[cdt][cdn]
+				setTimeout(function() {
+					frappe.set_route(form, doctype, docname)
+				})
+			}
 
-		frappe.route_options = {
-			"needs_to_save": true
+			// clear the prompt
+			frm.doc.sku_list_prompt = undefined
+
+			// and finally make the server call
+			frm.call(_method, _args, _callback)
 		}
 
-		frappe.set_route("Form", "Detalle de Estimacion", row.codigo)
+		frm.doc.sku_list_prompt && frm.doc.sku_list_prompt.show()
+		frm.doc.sku_list_prompt = frm.doc.sku_list_prompt || frappe.prompt(sku_field, callback, title, btn)
+
+		// set the query for the field
+		var query_func = function() {
+			var filters = {
+				"is_sku": "1"
+			}
+
+			if (frm.doc.estimation_type) {
+				$.extend(filters, {
+					"item_group": frm.doc.estimation_type
+				})
+			}
+
+			return {
+				"filters": filters
+			}
+		}
+
+		frm.doc.sku_list_prompt.fields_dict.sku.get_query = query_func
+	},
+	existe_orden_de_compra: function(frm) {
+
+		if ( !frm.doc.docstatus == 1) {
+			return 0 // exit code is zero
+		}
+
+		var doctype = "Purchase Order"
+		var fields = ["name"]
+
+		var filters = {
+			"created_from": frm.docname,
+			"docstatus": ["!=", "2"]
+		}
+
+		var callback = function(data) {
+
+			if (data) {
+				frm.add_custom_button("Ver Orden", function(event) {
+					frappe.set_route("Form", doctype, data.name)
+				})
+
+				return 0 // exit code is zero
+			}
+
+			var _label = "Crear Orden"
+			var _onclick = function(event) {
+
+				var _method = "heladom.api.crear_orden_de_compra"
+				var _args = {
+					"source": frm.docname
+				}
+
+				var _callback = function(response) {
+					var new_doc = response.message
+
+					if (new_doc) {
+						var doc = frappe.model.sync(new_doc)[0]
+
+						var form = "Form"
+						var doctype = doc.doctype
+						var docname = doc.name
+
+						frappe.set_route(form, doctype, docname)
+					}
+				}
+
+				frappe.call({
+					"method": _method,
+					"args": _args,
+					"callback": _callback
+				})
+			}
+
+			frm.add_custom_button(_label, _onclick)
+		}
+
+		frappe.db.get_value(doctype, filters, fields, callback)
+	},
+	paint_detalles_estimacion: function(frm) {
+
+		var method = "frappe.client.get_list"
+		var args = {
+			"doctype": "Detalle de Estimacion",
+			"filters": {
+				"parent": ["=", frm.docname],
+				"docstatus": ["!=", "2"]
+			},
+			"fields": ["name", "date", "sku", "sku_name",
+				"current_year_avg", "logistica", "mercadeo",
+				"planta", "consumption_weeks", "order_sku_total"
+			],
+			"order_by": "name",
+			"limit_page_length": "0"
+		}
+
+		var callback = function(response) {
+
+			var doc_list = response.message
+
+			// if there was an error or if the document has not rows
+			if ( !doc_list || !doc_list.length) {
+
+				// then let's set the no data message to the table
+				frm.doc.html_table = repl(frm.html_table, {
+					"empty_message": frm.html_no_data,
+					"rows": ""
+				})
+
+				// and show the button so that the user can create fill the table using the filters
+				frm.set_df_property("crear_estimaciones", "hidden", false)
+			}
+
+			// if something was found in the server
+			if (doc_list && doc_list.length) {
+
+				var html_rows = new String("")
+
+				// let's iterate the document list to fill the table
+				$.each(doc_list, function(idx, current) {
+					html_rows += frm.get_new_html_row({
+						"idx": idx + 1,
+						"cierre": current.date,
+						"codigo": current.name,
+						"item_code": current.sku,
+						"item_name": current.sku_name,
+						"promedio": current.current_year_avg,
+						"prevision": flt(current.logistica) + flt(current.mercadeo) + flt(current.planta),
+						"orden": current.order_sku_total,
+						"duracion": current.consumption_weeks,
+					})
+				})
+
+				frm.doc.html_table = repl(frm.html_table, {
+					"empty_message": "",
+					"footer_display": frm.doc.docstatus == "0" ? "block" : "none",
+					"rows": html_rows,
+				})
+
+				$.each(["presup_gral", "codigo", "cut_trend"], function(idx, field) {
+					frm.set_df_property(field, "read_only", true)
+				})
+
+				frm.set_df_property("crear_estimaciones", "hidden", true)
+			}
+
+			frm.set_df_property("detalle_table", "options", frm.doc.html_table)
+		}
+
+		frappe.call({
+			"method": method,
+			"args": args,
+			"callback": callback
+		})
 	}
 })
