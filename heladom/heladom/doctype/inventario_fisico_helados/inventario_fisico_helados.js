@@ -142,21 +142,21 @@ $.extend(heladom.fisico, {
 		return onzas_total
 	},
 	get_rate: function(from, to) {
-		var me = this
-		var sku = me.current_sku
-		var rate = 0.000
+		// var me = this
+		// var sku = me.current_sku
+		// var rate = 0.000
 
-		$.each(sku.conversion_factors, function(idx, row) {
-			if (row.from_uom == from && row.to_uom == to) {
-				rate = row.conversion_factor
-			}
-		})
+		// $.each(sku.conversion_factors, function(idx, row) {
+		// 	if (row.from_uom == from && row.to_uom == to) {
+		// 		rate = row.conversion_factor
+		// 	}
+		// })
 
-		if ( !rate) {
-			frappe.throw(__("SKU {0} no tiene definido la conversion desde {0} a {1}", 
-				[sku.name, from, to]))
-		}
+		// if ( !rate) {
+		// 	frappe.throw(__("SKU {0} no tiene definido la conversion desde {0} a {1}", 
+		// 		[sku.name, from, to]))
+		// }
 
-		return rate
+		return 1
 	}
 })

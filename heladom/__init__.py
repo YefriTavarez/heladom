@@ -42,8 +42,8 @@ def delete_ledger_entry_from_inventario(doc):
 		ledger.delete()
 
 @frappe.whitelist()
-def update_item_group(is_sku, sku, generico):
-	if is_sku:
+def update_item_group(item_type, sku, generico):
+	if item_type == "SKU":
 		item_doc = frappe.get_doc("Item", sku)
 		uom = frappe.get_value("Generico", generico, "uom")
 

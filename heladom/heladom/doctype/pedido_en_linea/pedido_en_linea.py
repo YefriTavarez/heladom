@@ -14,9 +14,6 @@ class PedidoenLinea(Document):
 		"""Create a new  set of Detalle de Pedido based on the current Pedido en Linea filters"""
 		
 		for sku in self.listado_skus():
-			if not self.estimation_type == sku.item_group:
-				frappe.errprint("sku.item_group {0}".format(sku.item_group))
-				continue
 
 			frappe.errprint("creating pedido {0}".format(sku.name))
 			detalle = self.crear_pedido(sku.name)
@@ -58,7 +55,7 @@ class PedidoenLinea(Document):
 	def listado_skus(self):
 		"""Fetch from the Database all the SKU Items that are not disabled"""
 		
-		return frappe.get_list("Item", {"is_sku": "1", "disabled": "0"},
+		return frappe.get_list("Item", {"item_type": "SKU", "disabled": "0"},
 			["name", "item_name", "able", "item_group"])
 
 	

@@ -8,6 +8,8 @@ import frappe, heladom.api
 from frappe.model.document import Document
 from heladom.constants import WEEK_DAYS, ONE_YEAR, WEEK_DAY_SET
 
+from frappe.utils import flt
+
 day = frappe.db.get_single_value("Configuracion", "default_week_day", cache=False)
 week_day = [e.get("label") for e in WEEK_DAY_SET if e.get("value") == str(day)][0]
 
@@ -34,6 +36,10 @@ class DetalledeEstimacion(Document):
 
 	def set_missing_values(self):
 		self.calculate_dates()
+
+		if not self.get_sku():
+			return 1 # as the generic has not sku
+
 		self.fill_tables()
 
 		from heladom.api import get_average
@@ -43,22 +49,24 @@ class DetalledeEstimacion(Document):
 		self.current_year_avg = get_average(
 			self.recent_history_current_year_start_date,
 			self.recent_history_current_year_end_date,
-			self.sku
+			self.sku,
+			self.cost_center
 		)
 
 		self.last_year_avg = get_average(
 			self.recent_history_last_year_start_date,
 			self.recent_history_last_year_end_date,
-			self.sku
+			self.sku,
+			self.cost_center
 		)
 
 		trend_tmp = 1 #to avoid issues
 		try:
-			trend_tmp = float(self.current_year_avg) / float(self.last_year_avg)
+			trend_tmp = flt(self.current_year_avg) / flt(self.last_year_avg)
 		except ZeroDivisionError as e:
 			frappe.errprint(e)
 
-		decimal_trend = float(trend_tmp - 1)
+		decimal_trend = flt(trend_tmp - 1)
 		trend = (decimal_trend * 100)
 		self.tendency = round(trend, 2)
 
@@ -67,12 +75,13 @@ class DetalledeEstimacion(Document):
 		self.desp_avg = get_average(
 			self.transit_period_start_date, 
 			self.transit_period_end_date,
-			self.sku
+			self.sku,
+			self.cost_center
 		)
 
 		self.recent_tendency = self.tendency
 
-		self.total_required = float(self.desp_avg) * float(self.transit_weeks)
+		self.total_required = flt(self.desp_avg, 2) * flt(self.transit_weeks, 2)
 
 		real_required = self.total_required + (self.total_required * decimal_trend)
 		self.real_required = round(real_required, 2)
@@ -85,16 +94,17 @@ class DetalledeEstimacion(Document):
 		self.avg_use_period = get_average(
 			self.consumption_period_start_date, 
 			self.consumption_period_end_date, 
-			self.sku
+			self.sku,
+			self.cost_center
 		)
 
 		self.consumption__use_period = int(self.consumption_weeks)
-		total_reqd_use_period = float(self.avg_use_period) * self.consumption__use_period
+		total_reqd_use_period = flt(self.avg_use_period) * self.consumption__use_period
 		self.total_reqd_use_period = round(total_reqd_use_period)
 
 		self.order_sku_existency = get_final_order_stock(self.date, self.sku)
 
-		tendency__use_period = float(self.presup_gral) / 100
+		tendency__use_period = flt(self.presup_gral) / 100
 		self.tendency__use_period = self.presup_gral
 		real_reqd_use_period = self.total_reqd_use_period * (1 + tendency__use_period)
 		self.real_reqd_use_period = round(real_reqd_use_period, 2)
@@ -110,7 +120,7 @@ class DetalledeEstimacion(Document):
 		self.reqd_option_2 = round(self.total_required + self.total_reqd_use_period)
 		self.reqd_option_3 = round(self.real_required + self.real_reqd_use_period)
 
-		self.order_sku_in_transit = get_total_in_transit(self.sku)
+		self.order_sku_in_transit = get_total_in_transit(self.sku, self.cost_center or None)
 		self.required_qty = 3 #set the option number three
 
 		order_sku_real_reqd = self.reqd_option_3 - self.order_sku_existency - self.order_sku_in_transit
@@ -121,10 +131,10 @@ class DetalledeEstimacion(Document):
 		self.piece_by_pallet = frappe.db.get_value("Item", self.sku, "units_in_pallet")
 
 		if self.piece_by_level:
-			self.level_qty = float(self.order_sku_total) / float(self.piece_by_level)
+			self.level_qty = flt(self.order_sku_total) / flt(self.piece_by_level)
 
 		if self.piece_by_pallet:
-			self.pallet_qty = float(self.order_sku_total) / float(self.piece_by_pallet)
+			self.pallet_qty = flt(self.order_sku_total) / flt(self.piece_by_pallet)
 
 	def fill_tables(self):
 		from heladom.api import fetch_as_array
@@ -167,23 +177,48 @@ class DetalledeEstimacion(Document):
 			)
 
 	def get_physical_stock_as_dict(self, date, sku):
-		import heladom.api
+		
+		generico = frappe.get_value("Item", sku, "generic")
+		from_uom = frappe.get_value("Item", sku, "stock_uom")
+		to_uom = frappe.get_value("Generico", generico, "uom")
 
-		row = frappe.db.sql("""SELECT parent.date AS ciclo, child.consumo AS desp, child.onces_total AS exist
+		conversion_factor = frappe.get_value("Factor de Conversion", {
+			"parent": sku,
+			"from_uom": from_uom,
+			"to_uom": to_uom
+		}, ["conversion_factor"])
+
+		row = frappe.db.sql("""SELECT fecha_transacion AS ciclo, consumo AS desp, existencia AS exist
 			FROM 
-				`tabInventario Fisico Helados` AS parent 
-			JOIN 
-				`tabInventario Fisico Helados Items` AS child 
-			ON 
-				parent.name = child.parent 
+				`tabRetail Food Ledger` 
 			WHERE
-				child.sku = '%(sku)s' 
+				sku = '%(sku)s'
 			AND 
-				parent.date = '%(date)s'""" 
+				fecha_transacion = '%(date)s'""" 
 		% {"date": date, "sku" : sku}, as_dict=True)
 
 		if not row:
 			return { "ciclo": 0, "desp": 0, "exist":0 }
 		
-		return heladom.api.first(row)
-	
+		return { 
+			"ciclo": frappe.utils.formatdate(date), 
+			"desp": flt(row[0].get("desp")) / conversion_factor, 
+			"exist": flt(row[0].get("exist")) / conversion_factor
+		}
+
+	def get_sku(self):
+
+		# if it's set then skip it
+		if self.sku: return 0
+
+		last_sku = frappe.get_value("Detalle de Estimacion", {
+			"generico": self.generico,
+		}, ["sku"], order_by="creation DESC")
+
+		if not last_sku:
+			last_sku = frappe.get_value("Item", {
+				"generic": self.generico
+			}, ["name"], order_by="modified DESC")
+
+		self.sku = last_sku
+		return self.sku

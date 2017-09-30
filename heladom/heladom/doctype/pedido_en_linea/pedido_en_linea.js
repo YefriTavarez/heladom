@@ -33,14 +33,13 @@ frappe.ui.form.on('Pedido en Linea', {
 	},
 	refresh_triggers: function(frm) {
 
-		frm.trigger("set_queries")
 		frm.trigger("existe_solicitud_de_materiales")
 
 		if ( !frm.doc.__islocal) {
 			frm.trigger("paint_detalles_estimacion")
 		} else {
 			// hide the button
-			frm.set_df_property("crear_pedidos", "hidden", "true")
+			frm.set_df_property("crear_pedidos", "hidden", true)
 		}
 
 		frm.set_df_property("date", "read_only", !!frm.doc.date)
@@ -51,22 +50,29 @@ frappe.ui.form.on('Pedido en Linea', {
 		// if there is not date then exit the function
 		if ( !today) {
 
-			frappe.msgprint("¡Fecha Invalida... favor de ingresar una fecha valida!")
 			return 1.000
-		} else if (moment(today).isoWeekday() != 2) {
-			
-			// let's complain
-			frappe.msgprint("¡Fecha Invalida... favor de ingresar una fecha valida que sea Martes!")
-			frm.doc.date = undefined
+		} 
 
-			refresh_field("date")
-			return 1.000
-		}
+		frappe.call({
+			"method": "heladom.api.validate_pedido_date",
+			"args": {
+				"date": frm.doc.date
+			},
+			"error": function(response) {
+				setTimeout(function() {
+					frm.doc.date = undefined
+					refresh_field("date")
+				}, 999)
+			}
+		})
 
 		var last_year = frappe.datetime.add_months(today, - 12)
 
 		frm.set_value("start_date", last_year)
 		frm.set_value("end_date", today)
+
+		frm.trigger("set_default_supplier")
+		frm.trigger("set_cost_center")
 	},
 	supplier: function(frm) {
 		if ( !frm.doc.date) {
@@ -93,10 +99,15 @@ frappe.ui.form.on('Pedido en Linea', {
 
 		var callback = function(data) {
 			$.each(data, function(idx, value) {
-				frm.set_value(fields[idx], value)
+				frm.doc[fields[idx]] = value
+				frm.trigger(fields[idx])
+				frm.refresh_fields()
 			})
 
-			frm.trigger("date")
+			var last_year = frappe.datetime.add_months(frm.doc.date, - 12)
+
+			frm.set_value("start_date", last_year)
+			frm.set_value("end_date", frm.doc.date)
 		}
 
 		frappe.db.get_value(doctype, docname, fields.keys(), callback)
@@ -143,6 +154,39 @@ frappe.ui.form.on('Pedido en Linea', {
 			"freeze_message": "Espere..."
 		})
 	},
+	set_default_supplier: function(frm) {
+		frappe.db.get_value("Configuracion", "Configuracion", "internal_supplier", function(data) {
+			frm.doc.supplier = data.internal_supplier
+			frm.trigger("supplier")
+			refresh_field("supplier")
+
+			// frm.set_df_property("supplier", "read_only", !!data.internal_supplier)
+		})
+	},
+	set_cost_center: function(frm) {
+		var current_user = frappe.user.name
+
+		frappe.call({
+			"method": "frappe.client.get_list",
+			"args": {
+				"doctype": "Centro de costo",
+				"fields": ["name", "center_admin"],
+				"limit_page_length": 0
+			},
+			"callback": function(response) {
+				var cost_centers = response.message
+
+				if (cost_centers) {
+					$.each(cost_centers, function(idx, cost_center) {
+						if (cost_center.center_admin == current_user) {
+							frm.set_value("cost_center", cost_center.name)
+							frm.set_df_property("cost_center", "read_only", true)
+						}
+					})
+				}
+			}
+		})
+	},
 	agregar_pedido: function(frm) {
 		if (frm.doc.__islocal) {
 			frappe.throw("¡Guarde el documento para poder continuar!")
@@ -183,16 +227,9 @@ frappe.ui.form.on('Pedido en Linea', {
 		// set the query for the field
 		var query_func = function(){
 			var filters = {
-				"is_sku": "1",
-				"es_generico": "1"
+				"item_type": "SKU"
 			}
 
-			if (frm.doc.estimation_type) {
-				$.extend(filters, {
-					"item_group": frm.doc.estimation_type
-				})
-			}
-			
 			return { "filters": filters }
 		}
 

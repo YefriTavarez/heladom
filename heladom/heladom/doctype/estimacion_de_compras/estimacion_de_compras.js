@@ -4,7 +4,7 @@
 frappe.ui.form.on('Estimacion de Compras', {
 	refresh: function(frm) {
 
-		if ( !frm.doc.__islocal) {
+		if ( ! frm.doc.__islocal) {
 			frm.page.menu_btn_group.removeClass("hide")
 		}
 
@@ -22,13 +22,13 @@ frappe.ui.form.on('Estimacion de Compras', {
 		}
 
 		var callback = function(data) {
-			frm.doc.has_purchase_order = !!data
+			frm.doc.has_purchase_order = !! data
 		}
 
 		frappe.db.get_value(doctype, filters, fields, callback)
 	},
 	setup: function(frm) {
-		if ( !(frm.doc.date || frm.doc.docstatus)) {
+		if ( ! (frm.doc.date || frm.doc.docstatus)) {
 
 			frm.doc.sku_list_prompt = undefined
 			frm.doc.date_picker_prompt = undefined
@@ -39,20 +39,20 @@ frappe.ui.form.on('Estimacion de Compras', {
 		frm.trigger("set_queries")
 		frm.trigger("existe_orden_de_compra")
 
-		if ( !frm.doc.__islocal) {
+		if ( ! frm.doc.__islocal) {
 			frm.trigger("paint_detalles_estimacion")
 		} else {
 			// hide the button
 			frm.set_df_property("crear_estimaciones", "hidden", "true")
 		}
 
-		frm.set_df_property("date", "read_only", !!frm.doc.date)
+		frm.set_df_property("date", "read_only", !! frm.doc.date)
 	},
 	date: function(frm) {
 		var today = frm.doc.date
 
 		// if there is not date then exit the function
-		if ( !today) {
+		if ( ! today) {
 
 			return 1.000
 		} 
@@ -76,7 +76,7 @@ frappe.ui.form.on('Estimacion de Compras', {
 		frm.set_value("end_date", today)
 	},
 	supplier: function(frm) {
-		if ( !frm.doc.date) {
+		if ( ! frm.doc.date) {
 			frm.doc.date = frappe.datetime.get_today()
 		}
 
@@ -124,7 +124,7 @@ frappe.ui.form.on('Estimacion de Compras', {
 
 		frm.doc.consumption_date = momt.format("ddd, D MMM YYYY")
 		frm.doc.consumption_weeks = frm.doc.coverage_weeks - frm.doc.transit_weeks
-		if ( !frm.doc.consumption_weeks) {
+		if ( ! frm.doc.consumption_weeks) {
 			frm.doc.consumption_weeks = frm.doc.coverage_weeks - frm.doc.transit_weeks + 1
 		}
 		refresh_many(["consumption_date", "consumption_weeks"])
@@ -156,20 +156,20 @@ frappe.ui.form.on('Estimacion de Compras', {
 		}
 
 		var btn = "Continuar"
-		var title = "Listado SKU"
+		var title = "Listado Genericos"
 		var sku_field = {
-			"label": "SKU",
+			"label": "Generico",
 			"fieldname": "sku",
 			"fieldtype": "Link",
 			"reqd": "1",
-			"options": "Item"
+			"options": "Generico"
 		}
 
 		var callback = function(data) {
 
 			var _method = "crear_estimacion"
 			var _args = {
-				"sku": data.sku
+				"generico": data.sku
 			}
 
 			var _callback = function(response) {
@@ -198,7 +198,7 @@ frappe.ui.form.on('Estimacion de Compras', {
 		// set the query for the field
 		var query_func = function() {
 			var filters = {
-				"is_sku": "1"
+				// "item_type": "SKU"
 			}
 
 			if (frm.doc.estimation_type) {
@@ -216,7 +216,7 @@ frappe.ui.form.on('Estimacion de Compras', {
 	},
 	existe_orden_de_compra: function(frm) {
 
-		if ( !frm.doc.docstatus == 1) {
+		if ( ! frm.doc.docstatus == 1) {
 			return 0 // exit code is zero
 		}
 
@@ -283,7 +283,8 @@ frappe.ui.form.on('Estimacion de Compras', {
 			},
 			"fields": ["name", "date", "sku", "sku_name",
 				"current_year_avg", "logistica", "mercadeo",
-				"planta", "consumption_weeks", "order_sku_total"
+				"planta", "consumption_weeks", "order_sku_total",
+				"level_qty", "pallet_qty"
 			],
 			"order_by": "name",
 			"limit_page_length": "0"
@@ -293,8 +294,11 @@ frappe.ui.form.on('Estimacion de Compras', {
 
 			var doc_list = response.message
 
+			var level_qty = 0.000
+			var pallet_qty = 0.000
+
 			// if there was an error or if the document has not rows
-			if ( !doc_list || !doc_list.length) {
+			if ( ! (doc_list && doc_list.length)) {
 
 				// then let's set the no data message to the table
 				frm.doc.html_table = repl(frm.html_table, {
@@ -324,6 +328,9 @@ frappe.ui.form.on('Estimacion de Compras', {
 						"orden": current.order_sku_total,
 						"duracion": current.consumption_weeks,
 					})
+
+					level_qty += flt(current.level_qty)
+					pallet_qty += flt(current.pallet_qty)
 				})
 
 				frm.doc.html_table = repl(frm.html_table, {
@@ -335,6 +342,11 @@ frappe.ui.form.on('Estimacion de Compras', {
 				$.each(["presup_gral", "codigo", "cut_trend"], function(idx, field) {
 					frm.set_df_property(field, "read_only", true)
 				})
+
+				// frm.doc.level_qty = level_qty
+				// frm.doc.pallet_qty = pallet_qty
+				frm.fields_dict.level_qty.$wrapper.find(".control-value.like-disabled-input").text(level_qty)
+				frm.fields_dict.pallet_qty.$wrapper.find(".control-value.like-disabled-input").text(pallet_qty)
 
 				frm.set_df_property("crear_estimaciones", "hidden", true)
 			}

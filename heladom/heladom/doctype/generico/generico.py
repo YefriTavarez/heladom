@@ -7,10 +7,7 @@ import frappe
 from frappe.model.document import Document
 
 class Generico(Document):
-	def autoname(self):
-		self.name = "{0} - {1}".format(self.code, 
-			self.generic_name.upper())
-
+	
 	def validate(self):
 		if not self.is_new():
 			self.update_items()
@@ -25,9 +22,8 @@ class Generico(Document):
 			item.db_update()
 
 	def get_items(self):
-		item_list = frappe.get_list("Item", 
+		item_list = frappe.get_list("Item",
 			{"generic": self.name})
 
-		return [frappe.get_doc("Item", item.name) 
+		return [frappe.get_doc("Item", item.name)
 			for item in item_list]
-	

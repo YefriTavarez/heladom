@@ -101,7 +101,7 @@ frappe.ui.form.on('Detalle de Pedido', {
 			]
 
 			$.each(fields, function(key, field) {
-				frappe.set_value(field, doc[field])
+				frm.set_value(field, doc[field])
 				frm.set_df_property(field, "read_only", true)
 			})
 		}
@@ -178,11 +178,11 @@ frappe.ui.form.on('Detalle de Pedido', {
 	},
 	required_qty: function(frm, cdt, cdn) {
 		if (frm.doc.required_qty == 1) {
-			frm.doc.order_sku_real_reqd = frm.doc.reqd_option_1 - frm.doc.order_sku_existency - frm.doc.order_sku_in_transit
+			frm.doc.order_sku_real_reqd = flt(frm.doc.reqd_option_1 - frm.doc.order_sku_existency - frm.doc.order_sku_in_transit, 0)
 		} else if (frm.doc.required_qty == 2) {
-			frm.doc.order_sku_real_reqd = frm.doc.reqd_option_2 - frm.doc.order_sku_existency - frm.doc.order_sku_in_transit
+			frm.doc.order_sku_real_reqd = flt(frm.doc.reqd_option_2 - frm.doc.order_sku_existency - frm.doc.order_sku_in_transit, 0)
 		} else if (frm.doc.required_qty == 3) {
-			frm.doc.order_sku_real_reqd = frm.doc.reqd_option_3 - frm.doc.order_sku_existency - frm.doc.order_sku_in_transit
+			frm.doc.order_sku_real_reqd = flt(frm.doc.reqd_option_3 - frm.doc.order_sku_existency - frm.doc.order_sku_in_transit, 0)
 		}
 
 		frm.doc.order_sku_total = flt(frm.doc.order_sku_real_reqd) + flt(frm.doc.mercadeo + frm.doc.logistica + frm.doc.planta)

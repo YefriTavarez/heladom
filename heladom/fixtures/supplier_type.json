@@ -5,9 +5,9 @@
   "credit_days_based_on": "", 
   "docstatus": 0, 
   "doctype": "Supplier Type", 
-  "modified": "2017-07-31 13:30:25.215512", 
-  "name": "Interno", 
-  "supplier_type": "Interno"
+  "modified": "2017-08-18 16:34:56.966212", 
+  "name": "Servicios", 
+  "supplier_type": "Servicios"
  }, 
  {
   "accounts": [], 
@@ -15,7 +15,67 @@
   "credit_days_based_on": "", 
   "docstatus": 0, 
   "doctype": "Supplier Type", 
-  "modified": "2017-01-12 10:26:27.032328", 
+  "modified": "2017-08-18 16:34:56.976178", 
+  "name": "Materia prima", 
+  "supplier_type": "Materia prima"
+ }, 
+ {
+  "accounts": [], 
+  "credit_days": 0, 
+  "credit_days_based_on": "", 
+  "docstatus": 0, 
+  "doctype": "Supplier Type", 
+  "modified": "2017-08-18 16:34:56.978963", 
+  "name": "El\u00e9ctrico", 
+  "supplier_type": "El\u00e9ctrico"
+ }, 
+ {
+  "accounts": [], 
+  "credit_days": 0, 
+  "credit_days_based_on": "", 
+  "docstatus": 0, 
+  "doctype": "Supplier Type", 
+  "modified": "2017-08-18 16:34:56.981560", 
+  "name": "Hardware", 
+  "supplier_type": "Hardware"
+ }, 
+ {
+  "accounts": [], 
+  "credit_days": 0, 
+  "credit_days_based_on": "", 
+  "docstatus": 0, 
+  "doctype": "Supplier Type", 
+  "modified": "2017-08-18 16:34:56.984169", 
+  "name": "Farmac\u00e9utico", 
+  "supplier_type": "Farmac\u00e9utico"
+ }, 
+ {
+  "accounts": [], 
+  "credit_days": 0, 
+  "credit_days_based_on": "", 
+  "docstatus": 0, 
+  "doctype": "Supplier Type", 
+  "modified": "2017-08-18 16:34:56.986796", 
+  "name": "Distribuidor", 
+  "supplier_type": "Distribuidor"
+ }, 
+ {
+  "accounts": [], 
+  "credit_days": 0, 
+  "credit_days_based_on": null, 
+  "docstatus": 0, 
+  "doctype": "Supplier Type", 
+  "modified": "2017-09-01 16:13:18.494369", 
+  "name": "Interno", 
+  "supplier_type": "Interno"
+ }, 
+ {
+  "accounts": [], 
+  "credit_days": 0, 
+  "credit_days_based_on": null, 
+  "docstatus": 0, 
+  "doctype": "Supplier Type", 
+  "modified": "2017-09-01 16:13:18.505694", 
   "name": "Local", 
   "supplier_type": "Local"
  }, 
@@ -48,5 +108,35 @@
   "modified": "2017-07-17 10:07:00.989933", 
   "name": "Seco Int", 
   "supplier_type": "Seco Int"
+ }, 
+ {
+  "accounts": [], 
+  "credit_days": 0, 
+  "credit_days_based_on": null, 
+  "docstatus": 0, 
+  "doctype": "Supplier Type", 
+  "modified": "2017-09-01 16:13:18.477609", 
+  "name": "Indefinido", 
+  "supplier_type": "Indefinido"
+ }, 
+ {
+  "accounts": [], 
+  "credit_days": 0, 
+  "credit_days_based_on": null, 
+  "docstatus": 0, 
+  "doctype": "Supplier Type", 
+  "modified": "2017-09-01 16:13:18.489410", 
+  "name": "Internacional", 
+  "supplier_type": "Internacional"
+ }, 
+ {
+  "accounts": [], 
+  "credit_days": 0, 
+  "credit_days_based_on": null, 
+  "docstatus": 0, 
+  "doctype": "Supplier Type", 
+  "modified": "2017-09-01 16:13:18.498873", 
+  "name": "Nacional", 
+  "supplier_type": "Nacional"
  }
 ]

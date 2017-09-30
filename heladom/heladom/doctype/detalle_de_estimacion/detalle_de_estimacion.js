@@ -25,6 +25,27 @@ frappe.ui.form.on('Detalle de Estimacion', {
 				frm.trigger("estimacion_de_compra")
 			})
 		}
+
+		frm.trigger("set_sku_query")
+	},
+	onload: function(frm) {
+		if (frm.doc.parent) {
+			var fields = [
+				"date",
+				"cost_center",
+				"supplier",
+				"estimation_type",
+				"cut_trend"]
+
+			$.each(fields, function(key, field) {
+				frm.set_df_property(field, "read_only", true)
+			})
+		}
+	},
+	onload_post_render: function(frm) {
+		frm.doc.original_coverage = flt(frm.doc.coverage_weeks) - flt(frm.doc.cobertura_relativa)
+
+		frm.trigger("add_supplier_fetchs")
 	},
 	estimacion_de_compra: function(frm) {
 
@@ -52,22 +73,15 @@ frappe.ui.form.on('Detalle de Estimacion', {
 		// set the query for the field
 		prmt.fields_dict.estimacion_de_compra.get_query = query
 	},
-	onload: function(frm) {
-		if (frm.doc.parent) {
-			var fields = [
-				"date",
-				"cost_center",
-				"supplier",
-				"estimation_type",
-				"cut_trend"]
-
-			$.each(fields, function(key, field) {
-				frm.set_df_property(field, "read_only", true)
-			})
-		}
-	},
-	onload_post_render: function(frm) {
-		frm.doc.original_coverage = flt(frm.doc.coverage_weeks) - flt(frm.doc.cobertura_relativa)
+	set_sku_query: function(frm) {
+		frm.set_query("sku", function() {
+			return {
+				"filters": {
+					"generic": frm.doc.generico,
+					"rotation_key": frm.doc.rotation_key
+				}
+			}
+		})
 	},
 	cobertura_relativa: function(frm) {
 		var coverage_weeks = frm.doc.original_coverage + frm.doc.cobertura_relativa
@@ -96,19 +110,37 @@ frappe.ui.form.on('Detalle de Estimacion', {
 			var fields = [ 
 				"date",
 				"cost_center", "supplier",
-				"estimation_type", "cut_trend"
+				"estimation_type", "cut_trend", "presup_gral"
 			]
 
 			$.each(fields, function(key, field) {
-				frappe.set_value(field, doc[field])
+
+				// let's set the value found in the parent
+				frm.set_value(field, doc[field])
+
+				// let's set it to read only
 				frm.set_df_property(field, "read_only", true)
+
+				// trigger the change event
+				frm.trigger(field)
 			})
 		}
 
 		frappe.call({ "method": method, "args": args, "callback": callback })
 	},
-	validate: function(frm) {
-		// to-do
+	add_supplier_fetchs: function(frm) {
+		var field_map = {
+			"presup_gral": "prevision_minima",
+			"cut_trend": "historia_reciente",
+			"transit_weeks": "transito",
+			"consumption_weeks": "consumo",
+			"coverage_weeks": "cobertura"
+		}
+
+		$.each(field_map, function(key, value) {
+
+			frm.add_fetch("supplier", value, key)
+		})
 	},
 	after_save: function(frm) {
 		if (frm.doc.parent) {

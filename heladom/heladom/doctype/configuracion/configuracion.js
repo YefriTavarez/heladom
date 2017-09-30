@@ -8,6 +8,15 @@ frappe.ui.form.on('Configuracion', {
 				&& document.activeElement.blur()
 		}, 100)
 	},
+	onload: function(frm) {
+		frm.set_query("internal_supplier", function() {
+			return {
+				"filters": {
+					"supplier_type": "Interno"
+				}
+			}
+		})
+	},
 	onload_post_render: function(frm) {
 		var method = "heladom.white_listed.get_week_day_set"
 		var callback = function(response) {
