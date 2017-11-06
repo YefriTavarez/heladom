@@ -317,3 +317,40 @@ def first(array):
 		array.append(flt(ZERO))
 
 	return array[ZERO]
+
+@frappe.whitelist()
+def get_stock_uom_conversion_rate(item, uom):
+	frappe.errprint("item {}".format(item))
+	frappe.errprint("uom {}".format(uom))
+	result = frappe.db.sql(
+		"""SELECT
+			child.conversion_factor 
+		FROM
+			`tabUOM Conversion Detail` AS child 
+			JOIN
+				tabItem AS parent 
+				ON parent.name = child.parent 
+		WHERE
+			parent.name = %s
+			AND child.uom = %s
+		""", (item, uom),
+	as_dict=False)
+
+	if len(result):
+		frappe.errprint("result[0][0] {}".format(result[0][0]))
+		return result[0][0]
+
+	frappe.errprint("0.000 {}".format(0.000))
+	return 0.000
+
+@frappe.whitelist()
+def get_stock_balance(warehouse, item_code):
+	result = frappe.db.sql("""SELECT SUM(actual_qty)
+		FROM
+    		`tabStock Ledger Entry` 
+		WHERE
+    		warehouse = %s
+    	AND item_code = %s
+	""", (warehouse, item_code), as_dict=False)[0][0]
+
+	return result

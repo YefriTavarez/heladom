@@ -8,7 +8,6 @@ frappe.listview_settings["Pedido en Linea"] = {
 
 				if (route.length == 2 && route[0] == "List" && route[1] == "Pedido en Linea") {
 
-					console.warn("run!")
 					page.refresh()
 				} else {
 					clearInterval(hm.interval.refresh_pedido)
